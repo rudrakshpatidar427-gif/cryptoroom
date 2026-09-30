@@ -311,6 +311,39 @@
             opacity: 0.75;
         }
 
+        /* Reactions & Options */
+        .reactions-badge {
+            position: absolute;
+            bottom: -10px;
+            right: 10px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 1px 6px;
+            font-size: 0.75rem;
+            display: flex;
+            gap: 2px;
+            z-index: 5;
+            cursor: pointer;
+        }
+        .incoming .reactions-badge { left: 10px; right: auto; }
+
+        .message-actions {
+            position: absolute;
+            top: -24px;
+            right: 0;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 6px;
+            display: none;
+            gap: 4px;
+            padding: 2px 6px;
+            z-index: 20;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .message-wrapper:hover .message-actions { display: flex; }
+        .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.85rem; }
+
         .chat-input-area {
             padding: 0.6rem 0.8rem;
             background: var(--bg);
@@ -367,12 +400,12 @@
         <!-- LOBBY SCREEN -->
         <div id="lobbyScreen" class="screen">
             <h1>Professional Encrypted Chat</h1>
-            <p>Secure peer-to-peer mobile messenger with uncompressed high-capacity media & crash-safe PDF sharing.</p>
+            <p>Secure peer-to-peer mobile messenger with full media, reactions & message management.</p>
             
             <div class="card">
                 <div class="form-group">
                     <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
+                    <input type="text" id="usernameInput" placeholder="e.g. Rudraksh Bhai" maxlength="24">
                 </div>
                 <div class="form-group">
                     <label>Cryptographic Room Code</label>
@@ -406,7 +439,7 @@
                         <span class="contact-phone">+00 00000 00000</span>
                     </div>
                     <div class="message">
-                        Room active! Socket.io connection established successfully.
+                        Room active! Media, PDF uploads, reactions, and deletions are fully operational.
                         <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
                     </div>
                 </div>
@@ -429,7 +462,6 @@
         
         const themes = ['', 'theme-purple', 'theme-light'];
         let currentThemeIdx = 0;
-        let displayedIds = new Set();
 
         function cycleTheme() {
             document.body.classList.remove('theme-purple', 'theme-light');
@@ -473,17 +505,23 @@
             if(e.key === 'Enter') sendMessage();
         }
 
-        function appendMessage(data) {
-            if(displayedIds.has(data.id)) return;
-            displayedIds.add(data.id);
-
-            const container = document.getElementById('messageContainer');
-            const wrapper = document.createElement('div');
-            wrapper.id = 'msg_' + data.id;
-            const isOutgoing = data.sender === myUsername;
-            wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+        function renderMessage(data) {
+            let wrapper = document.getElementById('msg_' + data.id);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.id = 'msg_' + data.id;
+                const isOutgoing = data.sender === myUsername;
+                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+                document.getElementById('messageContainer').appendChild(wrapper);
+            }
 
             let innerHTML = `
+                <div class="message-actions">
+                    <button onclick="reactMessage('${data.id}', '❤️')">❤️</button>
+                    <button onclick="reactMessage('${data.id}', '👍')">👍</button>
+                    <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
+                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑️</button>
+                </div>
                 <div class="group-msg-header">
                     <span>~ ${escapeHtml(data.sender)}</span>
                     <span class="contact-phone">${escapeHtml(data.phone)}</span>
@@ -515,8 +553,13 @@
                 </div>
             `;
 
+            if (data.reactions && Object.keys(data.reactions).length > 0) {
+                let reactionSummary = Object.values(data.reactions).join(' ');
+                innerHTML += `<div class="reactions-badge">${reactionSummary}</div>`;
+            }
+
             wrapper.innerHTML = innerHTML;
-            container.appendChild(wrapper);
+            const container = document.getElementById('messageContainer');
             container.scrollTop = container.scrollHeight;
         }
 
@@ -532,6 +575,7 @@
                 phone: myPhoneId,
                 type: 'text',
                 content: text,
+                reactions: {},
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
 
@@ -544,11 +588,6 @@
             if(!files || files.length === 0 || !currentRoom) return;
 
             for(let file of files) {
-                if(file.size > 20 * 1024 * 1024) {
-                    alert(`File ${file.name} is too large (>20MB).`);
-                    continue;
-                }
-
                 const reader = new FileReader();
                 reader.onload = function(evt) {
                     const base64Data = evt.target.result;
@@ -565,6 +604,7 @@
                         content: base64Data,
                         fileName: file.name,
                         fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                        reactions: {},
                         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                     };
 
@@ -575,12 +615,30 @@
             e.target.value = '';
         }
 
+        function deleteMessage(msgId) {
+            socket.emit('delete_message', { room: currentRoom, id: msgId });
+        }
+
+        function reactMessage(msgId, emoji) {
+            socket.emit('react_message', { room: currentRoom, id: msgId, user: myUsername, emoji: emoji });
+        }
+
         socket.on('init_history', (messages) => {
-            messages.forEach(msg => appendMessage(msg));
+            document.getElementById('messageContainerinnerHTML = '';
+            messages.forEach(msg => renderMessage(msg));
         });
 
         socket.on('receive_message', (msg) => {
-            appendMessage(msg);
+            renderMessage(msg);
+        });
+
+        socket.on('update_message', (msg) => {
+            renderMessage(msg);
+        });
+
+        socket.on('remove_message', (msgId) => {
+            const el = document.getElementById('msg_' + msgId);
+            if(el) el.remove();
         });
 
         function escapeHtml(str) {
