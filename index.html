@@ -4,7 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>CryptoRoom | Professional Encrypted Messenger</title>
-    <!-- Professional & Unique Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -51,66 +50,34 @@
             --outgoing-text: #0f172a;
         }
 
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            font-family: var(--font-main);
-            -webkit-tap-highlight-color: transparent;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
 
         html, body {
-            height: 100%;
-            height: 100dvh;
-            width: 100vw;
-            background-color: var(--bg);
-            color: var(--text-main);
-            overflow: hidden;
-            position: fixed;
-            left: 0;
-            top: 0;
+            height: 100%; height: 100dvh; width: 100vw;
+            background-color: var(--bg); color: var(--text-main);
+            overflow: hidden; position: fixed; left: 0; top: 0;
         }
 
         header {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            padding: 0.6rem 4%;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            z-index: 100;
-            flex-shrink: 0;
-            height: 52px;
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 4%; background: var(--surface); border-bottom: 1px solid var(--border);
+            z-index: 100; flex-shrink: 0; height: 52px;
         }
 
-        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; letter-spacing: -0.3px; }
+        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
         .logo span { color: var(--accent); }
-
         .header-controls { display: flex; gap: 6px; align-items: center; }
 
         .action-btn {
-            font-size: 0.72rem;
-            padding: 0.4rem 0.7rem;
-            border-radius: 6px;
-            border: 1px solid var(--border);
-            background: var(--bg);
-            color: var(--text-main);
-            cursor: pointer;
-            font-weight: 650;
+            font-size: 0.72rem; padding: 0.4rem 0.7rem; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--text-main);
+            cursor: pointer; font-weight: 650;
         }
 
         .online-counter {
-            font-size: 0.7rem;
-            font-family: var(--font-mono);
-            background: var(--accent-glow);
-            border: 1px solid var(--accent);
-            color: var(--accent);
-            padding: 0.3rem 0.6rem;
-            border-radius: 6px;
-            font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 5px;
+            font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
+            border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
+            border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 5px;
         }
         .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
 
@@ -120,270 +87,112 @@
             100% { transform: scale(0.95); opacity: 0.8; }
         }
 
-        .app-container {
-            width: 100%;
-            height: calc(100dvh - 52px);
-            display: flex;
-            flex-direction: column;
-            overflow: hidden;
-        }
+        .app-container { width: 100%; height: calc(100dvh - 52px); display: flex; flex-direction: column; overflow: hidden; }
 
-        .screen {
-            flex: 1;
-            display: flex;
-            flex-direction: column;
-            width: 100%;
-            max-width: 600px;
-            margin: 0 auto;
-            padding: 1rem;
-            overflow-y: auto;
-        }
+        .screen { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; padding: 1rem; overflow-y: auto; }
 
-        #lobbyScreen {
-            justify-content: center;
-            text-align: center;
-        }
-
-        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; letter-spacing: -0.5px; }
+        #lobbyScreen { justify-content: center; text-align: center; }
+        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
         #lobbyScreen p { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.2rem; line-height: 1.4; }
 
-        .card {
-            background: var(--surface);
-            border: 1px solid var(--border);
-            padding: 1.25rem;
-            border-radius: 14px;
-            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
-            text-align: left;
-        }
-
+        .card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: left; }
         .form-group { margin-bottom: 0.9rem; }
         .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
-
         .form-group input {
-            width: 100%;
-            padding: 0.8rem;
-            background: var(--bg);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            color: var(--text-main);
-            font-size: 0.95rem;
-            font-family: var(--font-mono);
-            text-align: center;
-            font-weight: 600;
+            width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: var(--font-mono); text-align: center; font-weight: 600;
         }
         .form-group input:focus { outline: none; border-color: var(--accent); }
 
         .btn {
-            width: 100%;
-            background: var(--accent);
-            color: #ffffff;
-            border: none;
-            padding: 0.8rem;
-            border-radius: 8px;
-            font-weight: 600;
-            font-size: 0.9rem;
-            cursor: pointer;
-            box-shadow: 0 4px 12px var(--accent-glow);
-            margin-bottom: 0.5rem;
+            width: 100%; background: var(--accent); color: #ffffff; border: none; padding: 0.8rem;
+            border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+            box-shadow: 0 4px 12px var(--accent-glow); margin-bottom: 0.5rem;
         }
         .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
 
-        #chatScreen {
-            display: none;
-            max-width: 100%;
-            padding: 0;
-            height: 100%;
-        }
+        #chatScreen { display: none; max-width: 100%; padding: 0; height: 100%; }
 
         .chat-header-bar {
-            padding: 0.6rem 1rem;
-            background: var(--surface);
-            border-bottom: 1px solid var(--border);
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            flex-shrink: 0;
+            padding: 0.6rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
         }
-
         .chat-peer-info { display: flex; align-items: center; gap: 8px; }
         .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
         .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
         .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
 
         .chat-messages {
-            flex-grow: 1;
-            padding: 0.8rem;
-            overflow-y: auto;
-            display: flex;
-            flex-direction: column;
-            gap: 0.75rem;
-            background-image: radial-gradient(var(--border) 1px, transparent 1px);
-            background-size: 20px 20px;
+            flex-grow: 1; padding: 0.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;
             -webkit-overflow-scrolling: touch;
         }
 
-        .message-wrapper {
-            position: relative;
-            max-width: 88%;
-            display: flex;
-            flex-direction: column;
-        }
+        .message-wrapper { position: relative; max-width: 88%; display: flex; flex-direction: column; }
         .message-wrapper.incoming { align-self: flex-start; }
         .message-wrapper.outgoing { align-self: flex-end; }
 
         .group-msg-header {
-            font-size: 0.7rem;
-            font-weight: 600;
-            color: var(--accent);
-            margin-bottom: 2px;
-            display: flex;
-            justify-content: space-between;
-            gap: 8px;
-            padding: 0 2px;
-        }
-        .group-msg-header .contact-phone {
-            color: var(--text-muted);
-            font-family: var(--font-mono);
-            font-weight: 400;
-            font-size: 0.62rem;
+            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; display: flex; justify-content: space-between; gap: 8px; padding: 0 2px;
         }
 
         .message {
-            padding: 0.55rem 0.75rem;
-            border-radius: 12px;
-            font-size: 0.88rem;
-            word-break: break-word;
-            line-height: 1.4;
-            position: relative;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+            padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
         }
-
         .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
         .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
 
-        .media-container {
-            position: relative;
-            margin-top: 2px;
-            max-width: 250px;
-        }
-        .message img, .message video {
-            width: 100%;
-            max-height: 200px;
-            border-radius: 8px;
-            display: block;
-            object-fit: cover;
-            background: #000;
-        }
+        .media-container { position: relative; margin-top: 2px; max-width: 250px; }
+        .message img, .message video { width: 100%; max-height: 200px; border-radius: 8px; display: block; object-fit: cover; background: #000; }
 
         .pdf-attachment {
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            background: rgba(0,0,0,0.2);
-            padding: 8px;
-            border-radius: 8px;
-            margin-top: 2px;
-            border: 1px solid rgba(255,255,255,0.08);
-            max-width: 260px;
+            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px;
+            border-radius: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.08); max-width: 260px;
         }
         .pdf-icon { font-size: 1.4rem; flex-shrink: 0; }
         .pdf-info { flex-grow: 1; overflow: hidden; }
         .pdf-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
         .pdf-size { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); }
-        .pdf-download-btn {
-            background: var(--accent);
-            color: #fff;
-            padding: 5px 8px;
-            border-radius: 6px;
-            font-size: 0.7rem;
-            text-decoration: none;
-            font-weight: 600;
-            flex-shrink: 0;
-        }
+        .pdf-download-btn { background: var(--accent); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.7rem; text-decoration: none; font-weight: 600; flex-shrink: 0; }
 
         .msg-bubble-footer {
-            display: inline-flex;
-            align-items: center;
-            gap: 3px;
-            float: right;
-            margin-left: 8px;
-            margin-top: 3px;
-            font-size: 0.6rem;
-            font-family: var(--font-mono);
-            opacity: 0.75;
+            display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
         }
+        .tick-mark { font-size: 0.65rem; color: #8696a0; }
+        .tick-mark.read { color: #34b7f1; } /* Blue tick color style */
 
-        /* Reactions & Options - Mobile Optimized */
         .reactions-badge {
-            position: absolute;
-            bottom: -10px;
-            right: 8px;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 12px;
-            padding: 1px 6px;
-            font-size: 0.75rem;
-            display: flex;
-            gap: 2px;
-            z-index: 5;
+            position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1px 6px; font-size: 0.75rem; display: flex; gap: 2px; z-index: 5;
         }
         .incoming .reactions-badge { left: 8px; right: auto; }
 
         .message-actions {
-            position: absolute;
-            top: -26px;
-            right: 0;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 8px;
-            display: none;
-            gap: 6px;
-            padding: 3px 8px;
-            z-index: 20;
-            box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+            position: absolute; top: -26px; right: 0; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; display: none; gap: 6px; padding: 3px 8px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
         }
-        /* Tap friendly on mobile via active state toggle fallback */
-        .message-wrapper:hover .message-actions,
-        .message-wrapper.touch-active .message-actions { display: flex; }
+        .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
         .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
 
-        .chat-input-area {
-            padding: 0.6rem 0.8rem;
-            background: var(--bg);
-            border-top: 1px solid var(--border);
-            display: flex;
-            gap: 6px;
-            align-items: center;
-            flex-shrink: 0;
-            padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+        .typing-indicator {
+            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
         }
 
+        .chat-input-area {
+            padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
+            display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+        }
         .attach-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; padding: 0 4px; opacity: 0.85; }
         .chat-input-area input[type="text"] {
-            flex-grow: 1;
-            padding: 0.7rem 0.9rem;
-            background: var(--surface);
-            border: 1px solid var(--border);
-            border-radius: 20px;
-            color: var(--text-main);
-            font-size: 0.9rem;
+            flex-grow: 1; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 20px; color: var(--text-main); font-size: 0.9rem;
         }
         .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
 
         .send-btn {
-            background: var(--accent);
-            color: #ffffff;
-            border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            font-weight: 700;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            flex-shrink: 0;
-            box-shadow: 0 2px 8px var(--accent-glow);
+            background: var(--accent); color: #ffffff; border: none; width: 40px; height: 40px;
+            border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
         }
     </style>
 </head>
@@ -395,7 +204,7 @@
             <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
             <div class="online-counter" id="onlineBadge">
                 <div class="online-dot"></div>
-                <span id="onlineCountText">Connected</span>
+                <span id="onlineCountText">0 Online</span>
             </div>
         </div>
     </header>
@@ -404,12 +213,12 @@
         <!-- LOBBY SCREEN -->
         <div id="lobbyScreen" class="screen">
             <h1>Professional Encrypted Chat</h1>
-            <p>Secure peer-to-peer mobile messenger with full media, reactions & message management.</p>
+            <p>Secure peer-to-peer mobile messenger with real-time counters, typing status, and read ticks.</p>
             
             <div class="card">
                 <div class="form-group">
                     <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Rudraksh Bhai" maxlength="24">
+                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
                 </div>
                 <div class="form-group">
                     <label>Cryptographic Room Code</label>
@@ -427,7 +236,7 @@
                     <div class="peer-avatar" id="myAvatarLetter">U</div>
                     <div class="peer-details">
                         <div class="room-title" id="activeCodeDisplay">Room ---</div>
-                        <div class="room-status" id="headerUserStatus">Connected</div>
+                        <div class="room-status" id="headerUserStatus">Connecting...</div>
                     </div>
                 </div>
                 <div style="display: flex; gap: 5px; align-items: center;">
@@ -436,23 +245,22 @@
                 </div>
             </div>
             
-            <div class="chat-messages" id="messageContainer">
+            <div class="chat-messages" id="messageContainer" onscroll="checkVisibleMessages()">
                 <div class="message-wrapper incoming">
-                    <div class="group-msg-header">
-                        <span>~ Secure System</span>
-                        <span class="contact-phone">+00 00000 00000</span>
-                    </div>
+                    <div class="group-msg-header"><span>~ Secure System</span></div>
                     <div class="message">
-                        Room active! Mobile optimization, media, reactions, and delete features are fully operational.
+                        Room active! Real-time user counters, typing events, and blue read ticks are enabled.
                         <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
                     </div>
                 </div>
             </div>
 
+            <div class="typing-indicator" id="typingIndicator"></div>
+
             <div class="chat-input-area">
                 <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf" multiple style="display:none;" onchange="handleFileAttachment(event)">
                 <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
-                <input type="text" id="messageInput" placeholder="Type a secure message..." onkeypress="handleKey(event)">
+                <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
                 <button class="send-btn" onclick="sendMessage()">➤</button>
             </div>
         </div>
@@ -462,7 +270,7 @@
         const socket = io();
         let currentRoom = null;
         let myUsername = 'Anonymous';
-        let myPhoneId = '+91 ' + Math.floor(70000 + Math.random() * 29999) + ' ' + Math.floor(10000 + Math.random() * 89999);
+        let typingTimeout = null;
         
         const themes = ['', 'theme-purple', 'theme-light'];
         let currentThemeIdx = 0;
@@ -498,15 +306,19 @@
             document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
             document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
 
-            socket.emit('join_room', currentRoom);
+            socket.emit('join_room', { room: currentRoom, username: myUsername });
         }
 
-        function leaveRoom() {
-            location.reload();
-        }
+        function leaveRoom() { location.reload(); }
+        function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
 
-        function handleKey(e) {
-            if(e.key === 'Enter') sendMessage();
+        // Typing Notification Trigger
+        function handleTypingInput() {
+            socket.emit('typing_start', { room: currentRoom, username: myUsername });
+            clearTimeout(typingTimeout);
+            typingTimeout = setTimeout(() => {
+                socket.emit('typing_stop', { room: currentRoom, username: myUsername });
+            }, 1200);
         }
 
         function renderMessage(data) {
@@ -516,8 +328,8 @@
                 wrapper.id = 'msg_' + data.id;
                 const isOutgoing = data.sender === myUsername;
                 wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+                wrapper.setAttribute('data-sender', data.sender);
                 
-                // Toggle action menu on tap for mobile screens
                 wrapper.addEventListener('click', (e) => {
                     document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
                     wrapper.classList.toggle('touch-active');
@@ -525,6 +337,13 @@
                 });
 
                 document.getElementById('messageContainer').appendChild(wrapper);
+            }
+
+            const isOutgoing = data.sender === myUsername;
+            let tickHTML = '';
+            if (isOutgoing) {
+                let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
+                tickHTML = `<span class="${tickClass}" title="${data.read ? 'Read' : 'Sent'}">✓✓</span>`;
             }
 
             let innerHTML = `
@@ -535,8 +354,7 @@
                     <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑️</button>
                 </div>
                 <div class="group-msg-header">
-                      <span>~ ${escapeHtml(data.sender)}</span>
-                    <span class="contact-phone">${escapeHtml(data.phone)}</span>
+                    <span>~ ${escapeHtml(data.sender)}</span>
                 </div>
                 <div class="message">
             `;
@@ -561,7 +379,7 @@
             }
 
             innerHTML += `
-                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span></div>
+                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span>${tickHTML}</div>
                 </div>
             `;
 
@@ -571,11 +389,26 @@
             }
 
             wrapper.innerHTML = innerHTML;
+            checkVisibleMessages();
+ }
+
+        // Check if messages are visible on screen to trigger blue tick read receipt
+        function checkVisibleMessages() {
             const container = document.getElementById('messageContainer');
-            container.scrollTop = container.scrollHeight;
+            const wrappers = container.querySelectorAll('.message-wrapper.incoming');
+            
+            wrappers.forEach(wrapper => {
+                const rect = wrapper.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                // If message is inside the viewable scroll box area
+                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                    const msgId = wrapper.id.replace('msg_', '');
+                    socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
+                }
+            });
         }
 
-        // Close action menus when clicking outside
         document.addEventListener('click', () => {
             document.querySelectorAll('.message-wrapper').forEach(w => w.classList.remove('touch-active'));
         });
@@ -589,9 +422,9 @@
                 room: currentRoom,
                 id: Math.random().toString(36).substring(2) + Date.now(),
                 sender: myUsername,
-                phone: myPhoneId,
                 type: 'text',
                 content: text,
+                read: false,
                 reactions: {},
                 time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
@@ -605,57 +438,65 @@
             if(!files || files.length === 0 || !currentRoom) return;
 
             for(let file of files) {
-                const reader = new FileReader();
-                reader.onload = function(evt) {
-                    const base64Data = evt.target.result;
-                    let type = 'file';
-                    if(file.type.startsWith('image/')) type = 'image';
-                    else if(file.type.startsWith('video/')) type = 'video';
+                // Use Object URL instead of memory-heavy Base64 encoding to prevent mobile lag
+                const objectUrl = URL.createObjectURL(file);
+                let type = 'file';
+                if(file.type.startsWith('image/')) type = 'image';
+                else if(file.type.startsWith('video/')) type = 'video';
 
-                    const msgData = {
-                        room: currentRoom,
-                        id: Math.random().toString(36).substring(2) + Date.now(),
-                        sender: myUsername,
-                        phone: myPhoneId,
-                        type: type,
-                        content: base64Data,
-                        fileName: file.name,
-                        fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
-                        reactions: {},
-                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                    };
-
-                    socket.emit('send_message', msgData);
+                const msgData = {
+                    room: currentRoom,
+                    id: Math.random().toString(36).substring(2) + Date.now(),
+                    sender: myUsername,
+                    type: type,
+                    content: objectUrl,
+                    fileName: file.name,
+                    fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                    read: false,
+                    reactions: {},
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 };
-                reader.readAsDataURL(file);
+
+                socket.emit('send_message', msgData);
             }
             e.target.value = '';
         }
 
-        function deleteMessage(msgId) {
-            socket.emit('delete_message', { room: currentRoom, id: msgId });
-        }
-
-        function reactMessage(msgId, emoji) {
-            socket.emit('react_message', { room: currentRoom, id: msgId, user: myUsername, emoji: emoji });
-        }
+        function deleteMessage(msgId) { socket.emit('delete_message', { room: currentRoom, id: msgId }); }
+        function reactMessage(msgId, emoji) { socket.emit('react_message', { room: currentRoom, id: msgId, user: myUsername, emoji: emoji }); }
 
         socket.on('init_history', (messages) => {
             document.getElementById('messageContainer').innerHTML = '';
             messages.forEach(msg => renderMessage(msg));
+            const container = document.getElementById('messageContainer');
+            container.scrollTop = container.scrollHeight;
         });
 
         socket.on('receive_message', (msg) => {
             renderMessage(msg);
+            const container = document.getElementById('messageContainer');
+            container.scrollTop = container.scrollHeight;
         });
 
-        socket.on('update_message', (msg) => {
-            renderMessage(msg);
-        });
-
+        socket.on('update_message', (msg) => { renderMessage(msg); });
         socket.on('remove_message', (msgId) => {
             const el = document.getElementById('msg_' + msgId);
             if(el) el.remove();
+        });
+
+        socket.on('room_users_update', (count) => {
+            document.getElementById('onlineCountText').innerText = count + (count === 1 ? ' Online' : ' Online');
+            document.getElementById('headerUserStatus').innerText = count + ' active user(s) in room';
+        });
+
+        socket.on('display_typing', (username) => {
+            if(username !== myUsername) {
+                document.getElementById('typingIndicator').innerText = username + ' is typing...';
+            }
+        });
+
+        socket.on('hide_typing', (username) => {
+            document.getElementById('typingIndicator').innerText = '';
         });
 
         function escapeHtml(str) {
