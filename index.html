@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Crypto Room - Secure Messaging</title>
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            background-color: #0b141a;
+            color: #e9edef;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+        }
+        #status-box {
+            background: rgba(0,0,0,0.9);
+            color: #ff5555;
+            font-size: 11px;
+            padding: 6px;
+            text-align: center;
+            z-index: 9999;
+            font-weight: bold;
+        }
+        header {
+            background-color: #202c33;
+            padding: 12px 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid #2f3b43;
+        }
+        .room-title {
+            font-size: 16px;
+            font-weight: bold;
+            color: #00a884;
+        }
+        .chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .message-bubble {
+            max-width: 75%;
+            padding: 8px 12px;
+            border-radius: 8px;
+            background-color: #005c4b;
+            align-self: flex-end;
+            word-break: break-word;
+            font-size: 14px;
+        }
+        .message-bubble.incoming {
+            background-color: #202c33;
+            align-self: flex-start;
+        }
+        .message-bubble img, .message-bubble video {
+            max-width: 100%;
+            border-radius: 6px;
+            margin-top: 4px;
+            display: block;
+        }
+        .file-link {
+            color: #34b7f1;
+            text-decoration: underline;
+            display: inline-block;
+            margin-top: 4px;
+            word-break: break-all;
+        }
+        .message-time {
+            font-size: 9px;
+            opacity: 0.6;
+            text-align: right;
+            margin-top: 2px;
+        }
+        .chat-input-area {
+            background-color: #202c33;
+            padding: 10px 16px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            border-top: 1px solid #2f3b43;
+        }
+        .chat-input-area input[type="text"] {
+            flex: 1;
+            background-color: #2a3942;
+            border: none;
+            border-radius: 8px;
+            padding: 10px 14px;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+        }
+        .attach-btn {
+            background: none;
+            border: none;
+            color: #8696a0;
+            font-size: 20px;
+            cursor: pointer;
+            padding: 0 4px;
+        }
+        .chat-input-area button.send-btn {
+            background-color: #00a884;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="status-box">Connecting...</div>
+
+    <header>
+        <div>
+            <div class="room-title">Crypto Room</div>
+            <div id="room-info" style="font-size: 11px; opacity: 0.7;">Secure Mesh Network</div>
+        </div>
+    </header>
+
+    <div class="chat-messages" id="chat-messages">
+        <div class="message-bubble incoming">
+            <b>System:</b> Secure channel active.
+            <div class="message-time">09:31</div>
+        </div>
+    </div>
+
+    <div class="chat-input-area">
+        <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,application/pdf">
+        <button class="attach-btn" id="attach-btn" title="Attach Media/PDF">📎</button>
+        <input type="text" id="message-input" placeholder="Type a message or attach file...">
+        <button class="send-btn" id="send-btn">➤</button>
+    </div>
+
+    <script>
+        const socket = io();
+        let username = localStorage.getItem('crypto_user') || 'Prnce';
+        let displayedIds = new Set();
+
+        const chatContainer = document.getElementById('chat-messages');
+        const messageInput = document.getElementById('message-input');
+        const sendBtn = document.getElementById('send-btn');
+        const attachBtn = document.getElementById('attach-btn');
+        const fileInput = document.getElementById('file-input');
+        const statusBox = document.getElementById('status-box');
+
+        socket.on('connect', () => {
+            statusBox.style.color = "#0f0";
+            statusBox.innerText = "🟢 Connected Live (Full Features Enabled)";
+        });
+
+        socket.on('disconnect', () => {
+            statusBox.style.color = "#ff5555";
+            statusBox.innerText = "🔴 Disconnected. Reconnecting...";
+        });
+
+        function appendMessage(sender, content, type, time, id) {
+            if (displayedIds.has(id)) return;
+            displayedIds.add(id);
+
+            let msgDiv = document.createElement('div');
+            msgDiv.id = id;
+            let isSelf = sender === username;
+            msgDiv.className = `message-bubble ${isSelf ? '' : 'incoming'}`;
+            
+            let timeStr = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+            let innerHtml = `<b>${escapeHtml(sender)}:</b> `;
+
+            if (type === 'image') {
+                innerHtml += `<br><img src="${content}" alt="Shared Photo">`;
+            } else if (type === 'video') {
+                innerHtml += `<br><video controls src="${content}"></video>`;
+            } else if (type === 'file') {
+                innerHtml += `<br><a class="file-link" href="${content}" download="shared_document.pdf" target="_blank">📄 Download PDF Document</a>`;
+            } else {
+                innerHtml += escapeHtml(content);
+            }
+
+            innerHtml += `<div class="message-time">${timeStr}</div>`;
+            msgDiv.innerHTML = innerHtml;
+            
+            chatContainer.appendChild(msgDiv);
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+        }
+
+        socket.on('init_history', (messages) => {
+            messages.forEach(m => appendMessage(m.sender, m.content, m.type, m.time, m.id));
+        });
+
+        socket.on('receive_message', (data) => {
+            appendMessage(data.sender, data.content, data.type, data.time, data.id);
+        });
+
+        function sendText() {
+            let text = messageInput.value.trim();
+            if (!text) return;
+
+            let msgData = {
+                id: 'msg_' + Math.random().toString(36).substr(2, 9) + Date.now(),
+                sender: username,
+                content: text,
+                type: 'text',
+                time: Date.now()
+            };
+
+            socket.emit('send_message', msgData);
+            messageInput.value = '';
+        }
+
+        attachBtn.addEventListener('click', () => fileInput.click());
+
+        fileInput.addEventListener('change', (e) => {
+            let file = e.target.files[0];
+            if (!file) return;
+
+            if (file.size > 15 * 1024 * 1024) {
+                alert("File is too large. Please select a file under 15MB.");
+                return;
+            }
+
+            let reader = new FileReader();
+            reader.onload = function (evt) {
+                let fileDataUrl = evt.target.result;
+                let fileType = 'file';
+                if (file.type.startsWith('image/')) fileType = 'image';
+                else if (file.type.startsWith('video/')) fileType = 'video';
+
+                let msgData = {
+                    id: 'msg_' + Math.random().toString(36).substr(2, 9) + Date.now(),
+                    sender: username,
+                    content: fileDataUrl,
+                    type: fileType,
+                    time: Date.now()
+                };
+
+                socket.emit('send_message', msgData);
+                fileInput.value = '';
+            };
+            reader.readAsDataURL(file);
+        });
+
+        sendBtn.addEventListener('click', sendText);
+        messageInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') sendText();
+        });
+
+        function escapeHtml(str) {
+            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        }
+    </script>
+</body>
+</html>
