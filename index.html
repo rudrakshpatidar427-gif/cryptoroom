@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CryptoRoom | Professional Encrypted Messenger</title>
+    <title>CryptoRoom | Secure Messenger</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
@@ -133,7 +133,7 @@
         .message-wrapper.outgoing { align-self: flex-end; }
 
         .group-msg-header {
-            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; display: flex; justify-content: space-between; gap: 8px; padding: 0 2px;
+            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
         }
 
         .message {
@@ -159,7 +159,7 @@
             display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
         }
         .tick-mark { font-size: 0.65rem; color: #8696a0; }
-        .tick-mark.read { color: #34b7f1; } /* Blue tick color style */
+        .tick-mark.read { color: #34b7f1; }
 
         .reactions-badge {
             position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
@@ -270,7 +270,7 @@
         const socket = io();
         let currentRoom = null;
         let myUsername = 'Anonymous';
-        let typingTimeout = null;
+        let typingTimer = null;
         
         const themes = ['', 'theme-purple', 'theme-light'];
         let currentThemeIdx = 0;
@@ -312,13 +312,12 @@
         function leaveRoom() { location.reload(); }
         function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
 
-        // Typing Notification Trigger
         function handleTypingInput() {
             socket.emit('typing_start', { room: currentRoom, username: myUsername });
-            clearTimeout(typingTimeout);
-            typingTimeout = setTimeout(() => {
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
                 socket.emit('typing_stop', { room: currentRoom, username: myUsername });
-            }, 1200);
+            }, 1000);
         }
 
         function renderMessage(data) {
@@ -328,7 +327,6 @@
                 wrapper.id = 'msg_' + data.id;
                 const isOutgoing = data.sender === myUsername;
                 wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
-                wrapper.setAttribute('data-sender', data.sender);
                 
                 wrapper.addEventListener('click', (e) => {
                     document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
@@ -343,15 +341,15 @@
             let tickHTML = '';
             if (isOutgoing) {
                 let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
-                tickHTML = `<span class="${tickClass}" title="${data.read ? 'Read' : 'Sent'}">✓✓</span>`;
+                tickHTML = `<span class="${tickClass}">✓✓</span>`;
             }
 
             let innerHTML = `
                 <div class="message-actions">
-                    <button onclick="reactMessage('${data.id}', '❤️')">❤️</button>
+                    <button onclick="reactMessage('${data.id}', '❤️')">❤️️</button>
                     <button onclick="reactMessage('${data.id}', '👍')">👍</button>
                     <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
-                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑️</button>
+                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑️️</button>
                 </div>
                 <div class="group-msg-header">
                     <span>~ ${escapeHtml(data.sender)}</span>
@@ -389,10 +387,8 @@
             }
 
             wrapper.innerHTML = innerHTML;
-            checkVisibleMessages();
- }
+        }
 
-        // Check if messages are visible on screen to trigger blue tick read receipt
         function checkVisibleMessages() {
             const container = document.getElementById('messageContainer');
             const wrappers = container.querySelectorAll('.message-wrapper.incoming');
@@ -401,7 +397,6 @@
                 const rect = wrapper.getBoundingClientRect();
                 const containerRect = container.getBoundingClientRect();
                 
-                // If message is inside the viewable scroll box area
                 if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
                     const msgId = wrapper.id.replace('msg_', '');
                     socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
@@ -438,8 +433,7 @@
             if(!files || files.length === 0 || !currentRoom) return;
 
             for(let file of files) {
-                // Use Object URL instead of memory-heavy Base64 encoding to prevent mobile lag
-                const objectUrl = URL.createObjectURL(file);
+                const fileUrl = URL.createObjectURL(file);
                 let type = 'file';
                 if(file.type.startsWith('image/')) type = 'image';
                 else if(file.type.startsWith('video/')) type = 'video';
@@ -449,7 +443,7 @@
                     id: Math.random().toString(36).substring(2) + Date.now(),
                     sender: myUsername,
                     type: type,
-                    content: objectUrl,
+                    content: fileUrl,
                     fileName: file.name,
                     fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
                     read: false,
@@ -476,6 +470,7 @@
             renderMessage(msg);
             const container = document.getElementById('messageContainer');
             container.scrollTop = container.scrollHeight;
+            checkVisibleMessages();
         });
 
         socket.on('update_message', (msg) => { renderMessage(msg); });
@@ -485,18 +480,16 @@
         });
 
         socket.on('room_users_update', (count) => {
-            document.getElementById('onlineCountText').innerText = count + (count === 1 ? ' Online' : ' Online');
-            document.getElementById('headerUserStatus').innerText = count + ' active user(s) in room';
+            document.getElementById('onlineCountText').innerText = count + ' Online';
+            document.getElementById('headerUserStatus').innerText = count + ' active user(s)';
         });
 
         socket.on('display_typing', (username) => {
-            if(username !== myUsername) {
+            if(username) {
                 document.getElementById('typingIndicator').innerText = username + ' is typing...';
+            } else {
+                document.getElementById('typingIndicator').innerText = '';
             }
-        });
-
-        socket.on('hide_typing', (username) => {
-            document.getElementById('typingIndicator').innerText = '';
         });
 
         function escapeHtml(str) {
