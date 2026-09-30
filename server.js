@@ -4,8 +4,10 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
+
+// Expanded buffer limit to 50MB for large videos & PDFs
 const io = new Server(server, {
-    maxHttpBufferSize: 25 * 1024 * 1024 
+    maxHttpBufferSize: 50 * 1024 * 1024 
 });
 
 app.use(express.static(__dirname));
@@ -24,9 +26,29 @@ io.on('connection', (socket) => {
         if (!roomHistories[room]) roomHistories[room] = [];
         
         roomHistories[room].push(msg);
-        if (roomHistories[room].length > 50) roomHistories[room].shift();
+        if (roomHistories[room].length > 100) roomHistories[room].shift();
         
         io.to(room).emit('receive_message', msg);
+    });
+
+    socket.on('delete_message', (data) => {
+        const room = data.room;
+        if (roomHistories[room]) {
+            roomHistories[room] = roomHistories[room].filter(m => m.id !== data.id);
+            io.to(room).emit('remove_message', data.id);
+        }
+    });
+
+    socket.on('react_message', (data) => {
+        const room = data.room;
+        if (roomHistories[room]) {
+            let msg = roomHistories[room].find(m => m.id === data.id);
+            if (msg) {
+                if (!msg.reactions) msg.reactions = {};
+                msg.reactions[data.user] = data.emoji;
+                io.to(room).emit('update_message', msg);
+            }
+        }
     });
 });
 
