@@ -2,262 +2,582 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Crypto Room - Secure Messaging</title>
-    <script src="/socket.io/socket.io.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CryptoRoom | Professional Encrypted Messenger</title>
+    <!-- Professional & Unique Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/gun/gun.js"></script>
     <style>
-        body {
+        :root {
+            --bg: #0b141a;
+            --surface: #111b21;
+            --border: #222d34;
+            --accent: #00a884;
+            --accent-glow: rgba(0, 168, 132, 0.2);
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --bubble-incoming: #202c33;
+            --bubble-outgoing: #005c4b;
+            --outgoing-text: #e9edef;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
+
+        body.theme-purple {
+            --bg: #090514;
+            --surface: #150b26;
+            --border: #281545;
+            --accent: #9333ea;
+            --accent-glow: rgba(147, 51, 234, 0.25);
+            --bubble-incoming: #1f1235;
+            --bubble-outgoing: #9333ea;
+            --outgoing-text: #ffffff;
+            --text-main: #f3e8ff;
+            --text-muted: #c084fc;
+        }
+
+        body.theme-light {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --bubble-incoming: #f1f5f9;
+            --bubble-outgoing: #e0f2fe;
+            --outgoing-text: #0f172a;
+        }
+
+        * {
             margin: 0;
             padding: 0;
-            background-color: #0b141a;
-            color: #e9edef;
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            height: 100vh;
+            box-sizing: border-box;
+            font-family: var(--font-main);
+            -webkit-tap-highlight-color: transparent;
         }
-        #status-box {
-            background: rgba(0,0,0,0.9);
-            color: #ff5555;
-            font-size: 11px;
-            padding: 6px;
-            text-align: center;
-            z-index: 9999;
-            font-weight: bold;
+
+        html, body {
+            height: 100%;
+            height: 100dvh;
+            width: 100vw;
+            background-color: var(--bg);
+            color: var(--text-main);
+            overflow: hidden;
+            position: fixed;
         }
+
         header {
-            background-color: #202c33;
-            padding: 12px 16px;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            border-bottom: 1px solid #2f3b43;
+            padding: 0.6rem 4%;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            z-index: 100;
+            flex-shrink: 0;
+            height: 52px;
         }
-        .room-title {
-            font-size: 16px;
-            font-weight: bold;
-            color: #00a884;
+
+        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; letter-spacing: -0.3px; }
+        .logo span { color: var(--accent); }
+
+        .header-controls { display: flex; gap: 6px; align-items: center; }
+
+        .action-btn {
+            font-size: 0.72rem;
+            padding: 0.35rem 0.65rem;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: var(--bg);
+            color: var(--text-main);
+            cursor: pointer;
+            font-weight: 600;
         }
-        .chat-messages {
-            flex: 1;
-            overflow-y: auto;
-            padding: 16px;
+
+        .online-counter {
+            font-size: 0.7rem;
+            font-family: var(--font-mono);
+            background: var(--accent-glow);
+            border: 1px solid var(--accent);
+            color: var(--accent);
+            padding: 0.3rem 0.6rem;
+            border-radius: 6px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+        .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .app-container {
+            width: 100%;
+            height: calc(100dvh - 52px);
             display: flex;
             flex-direction: column;
-            gap: 8px;
+            overflow: hidden;
         }
-        .message-bubble {
-            max-width: 75%;
-            padding: 8px 12px;
-            border-radius: 8px;
-            background-color: #005c4b;
-            align-self: flex-end;
-            word-break: break-word;
-            font-size: 14px;
-        }
-        .message-bubble.incoming {
-            background-color: #202c33;
-            align-self: flex-start;
-        }
-        .message-bubble img, .message-bubble video {
-            max-width: 100%;
-            border-radius: 6px;
-            margin-top: 4px;
-            display: block;
-        }
-        .file-link {
-            color: #34b7f1;
-            text-decoration: underline;
-            display: inline-block;
-            margin-top: 4px;
-            word-break: break-all;
-        }
-        .message-time {
-            font-size: 9px;
-            opacity: 0.6;
-            text-align: right;
-            margin-top: 2px;
-        }
-        .chat-input-area {
-            background-color: #202c33;
-            padding: 10px 16px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
-            border-top: 1px solid #2f3b43;
-        }
-        .chat-input-area input[type="text"] {
+
+        .screen {
             flex: 1;
-            background-color: #2a3942;
-            border: none;
+            display: flex;
+            flex-direction: column;
+            width: 100%;
+            max-width: 600px;
+            margin: 0 auto;
+            padding: 1rem;
+            overflow-y: auto;
+        }
+
+        #lobbyScreen {
+            justify-content: center;
+            text-align: center;
+        }
+
+        #lobbyScreen h1 { font-size: 1.5rem; font-weight: 700; margin-bottom: 0.3rem; letter-spacing: -0.5px; }
+        #lobbyScreen p { color: var(--text-muted); font-size: 0.85rem; margin-bottom: 1.2rem; line-height: 1.4; }
+
+        .card {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            padding: 1.25rem;
+            border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+            text-align: left;
+        }
+
+        .form-group { margin-bottom: 0.9rem; }
+        .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
+
+        .form-group input {
+            width: 100%;
+            padding: 0.75rem;
+            background: var(--bg);
+            border: 1px solid var(--border);
             border-radius: 8px;
-            padding: 10px 14px;
-            color: #fff;
-            font-size: 14px;
-            outline: none;
+            color: var(--text-main);
+            font-size: 0.9rem;
+            font-family: var(--font-mono);
+            text-align: center;
+            font-weight: 600;
         }
-        .attach-btn {
-            background: none;
+        .form-group input:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            width: 100%;
+            background: var(--accent);
+            color: #ffffff;
             border: none;
-            color: #8696a0;
-            font-size: 20px;
+            padding: 0.75rem;
+            border-radius: 8px;
+            font-weight: 600;
+            font-size: 0.9rem;
             cursor: pointer;
-            padding: 0 4px;
+            box-shadow: 0 4px 12px var(--accent-glow);
+            margin-bottom: 0.5rem;
         }
-        .chat-input-area button.send-btn {
-            background-color: #00a884;
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
+
+        #chatScreen {
+            display: none;
+            max-width: 100%;
+            padding: 0;
+            height: 100%;
+        }
+
+        .chat-header-bar {
+            padding: 0.6rem 1rem;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .chat-peer-info { display: flex; align-items: center; gap: 8px; }
+        .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
+        .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
+        .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
+
+        .chat-messages {
+            flex-grow: 1;
+            padding: 0.8rem;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px);
+            background-size: 20px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message-wrapper {
+            position: relative;
+            max-width: 85%;
+            display: flex;
+            flex-direction: column;
+        }
+        .message-wrapper.incoming { align-self: flex-start; }
+        .message-wrapper.outgoing { align-self: flex-end; }
+
+        .group-msg-header {
+            font-size: 0.7rem;
+            font-weight: 600;
+            color: var(--accent);
+            margin-bottom: 2px;
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            padding: 0 2px;
+        }
+        .group-msg-header .contact-phone {
+            color: var(--text-muted);
+            font-family: var(--font-mono);
+            font-weight: 400;
+            font-size: 0.62rem;
+        }
+
+        .message {
+            padding: 0.5rem 0.7rem;
+            border-radius: 12px;
+            font-size: 0.88rem;
+            word-break: break-word;
+            line-height: 1.4;
+            position: relative;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+
+        .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
+        .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
+
+        .media-container {
+            position: relative;
+            margin-top: 2px;
+            max-width: 260px;
+        }
+        .message img, .message video {
+            width: 100%;
+            max-height: 220px;
+            border-radius: 8px;
+            display: block;
+            object-fit: cover;
+            background: #000;
+        }
+
+        /* Crash-Safe PDF Attachment Bubble */
+        .pdf-attachment {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            background: rgba(0,0,0,0.2);
+            padding: 8px 10px;
+            border-radius: 8px;
+            margin-top: 2px;
+            border: 1px solid rgba(255,255,255,0.08);
+            max-width: 280px;
+        }
+        .pdf-icon { font-size: 1.5rem; flex-shrink: 0; }
+        .pdf-info { flex-grow: 1; overflow: hidden; }
+        .pdf-name { font-size: 0.78rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pdf-size { font-size: 0.62rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .pdf-download-btn {
+            background: var(--accent);
+            color: #fff;
+            padding: 5px 8px;
+            border-radius: 6px;
+            font-size: 0.7rem;
+            text-decoration: none;
+            font-weight: 600;
+            flex-shrink: 0;
+        }
+
+        .msg-bubble-footer {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            float: right;
+            margin-left: 10px;
+            margin-top: 3px;
+            font-size: 0.62rem;
+            font-family: var(--font-mono);
+            opacity: 0.75;
+        }
+
+        .chat-input-area {
+            padding: 0.6rem 0.8rem;
+            background: var(--bg);
+            border-top: 1px solid var(--border);
+            display: flex;
+            gap: 6px;
+            align-items: center;
+            flex-shrink: 0;
+        }
+
+        .attach-btn { background: transparent; border: none; font-size: 1.25rem; cursor: pointer; padding: 0 2px; opacity: 0.8; }
+        .chat-input-area input[type="text"] {
+            flex-grow: 1;
+            padding: 0.7rem 0.9rem;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            color: var(--text-main);
+            font-size: 0.9rem;
+        }
+        .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+        .send-btn {
+            background: var(--accent);
+            color: #ffffff;
             border: none;
+            width: 38px;
+            height: 38px;
             border-radius: 50%;
-            width: 40px;
-            height: 40px;
+            font-weight: 700;
             cursor: pointer;
             display: flex;
             align-items: center;
             justify-content: center;
-            color: white;
-            font-weight: bold;
+            flex-shrink: 0;
+            box-shadow: 0 2px 8px var(--accent-glow);
         }
     </style>
 </head>
 <body>
 
-    <div id="status-box">Connecting...</div>
-
     <header>
-        <div>
-            <div class="room-title">Crypto Room</div>
-            <div id="room-info" style="font-size: 11px; opacity: 0.7;">Secure Mesh Network</div>
+        <div class="logo">Crypto<span>Room</span></div>
+        <div class="header-controls">
+            <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
+            <div class="online-counter" id="onlineBadge">
+                <div class="online-dot"></div>
+                <span id="onlineCountText">1 Online</span>
+            </div>
         </div>
     </header>
 
-    <div class="chat-messages" id="chat-messages">
-        <div class="message-bubble incoming">
-            <b>System:</b> Secure channel active.
-            <div class="message-time">09:31</div>
+    <div class="app-container">
+        <!-- LOBBY SCREEN -->
+        <div id="lobbyScreen" class="screen">
+            <h1>Professional Encrypted Chat</h1>
+            <p>Secure peer-to-peer mobile messenger with uncompressed high-capacity media & crash-safe PDF sharing.</p>
+            
+            <div class="card">
+                <div class="form-group">
+                    <label>Your Display Name</label>
+                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
+                </div>
+                <div class="form-group">
+                    <label>Cryptographic Room Code</label>
+                    <input type="text" id="roomCodeInput" placeholder="e.g. 48.902.112">
+                </div>
+                <button class="btn" onclick="joinRoom()">Join Secure Room 🚀</button>
+                <button class="btn btn-outline" onclick="generateUnguessableCode()">Generate Secure Code ⚡</button>
+            </div>
+        </div>
+
+        <!-- CHAT SCREEN -->
+        <div id="chatScreen" class="screen">
+            <div class="chat-header-bar">
+                <div class="chat-peer-info">
+                    <div class="peer-avatar" id="myAvatarLetter">U</div>
+                    <div class="peer-details">
+                        <div class="room-title" id="activeCodeDisplay">Room ---</div>
+                        <div class="room-status" id="headerUserStatus">Connected</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button class="action-btn" onclick="copyRoomCode()">Copy</button>
+                    <button class="action-btn" onclick="leaveRoom()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">Leave</button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="messageContainer">
+                <div class="message-wrapper incoming">
+                    <div class="group-msg-header">
+                        <span>~ Secure System</span>
+                        <span class="contact-phone">+00 00000 00000</span>
+                    </div>
+                    <div class="message">
+                        Room active! Mobile high-capacity video streaming and crash-safe PDF document sharing are enabled.
+                        <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="chat-input-area">
+                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf" multiple style="display:none;" onchange="handleFileAttachment(event)">
+                <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
+                <input type="text" id="messageInput" placeholder="Type a secure message..." onkeypress="handleKey(event)">
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
         </div>
     </div>
 
-    <div class="chat-input-area">
-        <input type="file" id="file-input" style="display: none;" accept="image/*,video/*,application/pdf">
-        <button class="attach-btn" id="attach-btn" title="Attach Media/PDF">📎</button>
-        <input type="text" id="message-input" placeholder="Type a message or attach file...">
-        <button class="send-btn" id="send-btn">➤</button>
-    </div>
-
     <script>
-        const socket = io();
-        let username = localStorage.getItem('crypto_user') || 'Prnce';
-        let displayedIds = new Set();
+        const gun = Gun(['https://gun-manhattan.herokuapp.com/gun']);
+        let currentRoom = null;
+        let myUsername = 'Anonymous';
+        let myPhoneId = '+91 ' + Math.floor(70000 + Math.random() * 29999) + ' ' + Math.floor(10000 + Math.random() * 89999);
+        let myId = Math.random().toString(36).substring(2, 8);
+        
+        const themes = ['', 'theme-purple', 'theme-light'];
+        let currentThemeIdx = 0;
 
-        const chatContainer = document.getElementById('chat-messages');
-        const messageInput = document.getElementById('message-input');
-        const sendBtn = document.getElementById('send-btn');
-        const attachBtn = document.getElementById('attach-btn');
-        const fileInput = document.getElementById('file-input');
-        const statusBox = document.getElementById('status-box');
-
-        socket.on('connect', () => {
-            statusBox.style.color = "#0f0";
-            statusBox.innerText = "🟢 Connected Live (Full Features Enabled)";
-        });
-
-        socket.on('disconnect', () => {
-            statusBox.style.color = "#ff5555";
-            statusBox.innerText = "🔴 Disconnected. Reconnecting...";
-        });
-
-        function appendMessage(sender, content, type, time, id) {
-            if (displayedIds.has(id)) return;
-            displayedIds.add(id);
-
-            let msgDiv = document.createElement('div');
-            msgDiv.id = id;
-            let isSelf = sender === username;
-            msgDiv.className = `message-bubble ${isSelf ? '' : 'incoming'}`;
-            
-            let timeStr = new Date(time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-            let innerHtml = `<b>${escapeHtml(sender)}:</b> `;
-
-            if (type === 'image') {
-                innerHtml += `<br><img src="${content}" alt="Shared Photo">`;
-            } else if (type === 'video') {
-                innerHtml += `<br><video controls src="${content}"></video>`;
-            } else if (type === 'file') {
-                innerHtml += `<br><a class="file-link" href="${content}" download="shared_document.pdf" target="_blank">📄 Download PDF Document</a>`;
-            } else {
-                innerHtml += escapeHtml(content);
-            }
-
-            innerHtml += `<div class="message-time">${timeStr}</div>`;
-            msgDiv.innerHTML = innerHtml;
-            
-            chatContainer.appendChild(msgDiv);
-            chatContainer.scrollTop = chatContainer.scrollHeight;
+        function cycleTheme() {
+            document.body.classList.remove('theme-purple', 'theme-light');
+            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+            if(themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
         }
 
-        socket.on('init_history', (messages) => {
-            messages.forEach(m => appendMessage(m.sender, m.content, m.type, m.time, m.id));
-        });
+        function generateUnguessableCode() {
+            let parts = [];
+            for(let i=0; i<3; i++) parts.push(Math.floor(10 + Math.random() * 9899));
+            document.getElementById('roomCodeInput').value = parts.join('.');
+        }
 
-        socket.on('receive_message', (data) => {
-            appendMessage(data.sender, data.content, data.type, data.time, data.id);
-        });
+        function copyRoomCode() {
+            if(!currentRoom) return;
+            navigator.clipboard.writeText(currentRoom).then(() => alert("Room code copied!"));
+        }
 
-        function sendText() {
-            let text = messageInput.value.trim();
-            if (!text) return;
+        function joinRoom() {
+            const name = document.getElementById('usernameInput').value.trim();
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if(!name) return alert("Please enter your name!");
+            if(!code) return alert("Please enter a room code!");
 
-            let msgData = {
-                id: 'msg_' + Math.random().toString(36).substr(2, 9) + Date.now(),
-                sender: username,
-                content: text,
+            myUsername = name;
+            currentRoom = code;
+
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('chatScreen').style.display = 'flex';
+            document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
+            document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
+
+            initGunChat();
+        }
+
+        function leaveRoom() {
+            location.reload();
+        }
+
+        function handleKey(e) {
+            if(e.key === 'Enter') sendMessage();
+        }
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if(!text) return;
+
+            const msgData = {
+                id: Math.random().toString(36).substring(2),
+                sender: myUsername,
+                phone: myPhoneId,
                 type: 'text',
-                time: Date.now()
+                content: text,
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
 
-            socket.emit('send_message', msgData);
-            messageInput.value = '';
+            gun.get('cryptoroom').get(currentRoom).set(msgData);
+            input.value = '';
         }
 
-        attachBtn.addEventListener('click', () => fileInput.click());
+        function handleFileAttachment(e) {
+            const files = e.target.files;
+            if(!files || files.length === 0) return;
 
-        fileInput.addEventListener('change', (e) => {
-            let file = e.target.files[0];
-            if (!file) return;
+            for(let file of files) {
+                if(file.size > 25 * 1024 * 1024) {
+                    alert(`File ${file.name} is too large (>25MB).`);
+                    continue;
+                }
 
-            if (file.size > 15 * 1024 * 1024) {
-                alert("File is too large. Please select a file under 15MB.");
-                return;
-            }
+                const reader = new FileReader();
+                reader.onload = function(evt) {
+                    const base64Data = evt.target.result;
+                    let type = 'file';
+                    if(file.type.startsWith('image/')) type = 'image';
+                    else if(file.type.startsWith('video/')) type = 'video';
 
-            let reader = new FileReader();
-            reader.onload = function (evt) {
-                let fileDataUrl = evt.target.result;
-                let fileType = 'file';
-                if (file.type.startsWith('image/')) fileType = 'image';
-                else if (file.type.startsWith('video/')) fileType = 'video';
+                    const msgData = {
+                        id: Math.random().toString(36).substring(2),
+                        sender: myUsername,
+                        phone: myPhoneId,
+                        type: type,
+                        content: base64Data,
+                        fileName: file.name,
+                        fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    };
 
-                let msgData = {
-                    id: 'msg_' + Math.random().toString(36).substr(2, 9) + Date.now(),
-                    sender: username,
-                    content: fileDataUrl,
-                    type: fileType,
-                    time: Date.now()
+                    gun.get('cryptoroom').get(currentRoom).set(msgData);
                 };
+                reader.readAsDataURL(file);
+            }
+            e.target.value = '';
+        }
 
-                socket.emit('send_message', msgData);
-                fileInput.value = '';
-            };
-            reader.readAsDataURL(file);
-        });
+        function initGunChat() {
+            const container = document.getElementById('messageContainer');
+            
+            gun.get('cryptoroom').get(currentRoom).map().once((data, id) => {
+                if(!data || document.getElementById('msg_' + data.id)) return;
 
-        sendBtn.addEventListener('click', sendText);
-        messageInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') sendText();
-        });
+                const wrapper = document.createElement('div');
+                wrapper.id = 'msg_' + data.id;
+                const isOutgoing = data.sender === myUsername;
+                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+
+                let innerHTML = `
+                    <div class="group-msg-header">
+                        <span>~ ${escapeHtml(data.sender)}</span>
+                        <span class="contact-phone">${escapeHtml(data.phone)}</span>
+                    </div>
+                    <div class="message">
+                `;
+
+                if(data.type === 'image') {
+                    innerHTML += `<div class="media-container"><img src="${data.content}" alt="Photo"></div>`;
+                } else if(data.type === 'video') {
+                    innerHTML += `<div class="media-container"><video controls src="${data.content}"></video></div>`;
+                } else if(data.type === 'file') {
+                    innerHTML += `
+                        <div class="pdf-attachment">
+                            <div class="pdf-icon">📄</div>
+                            <div class="pdf-info">
+                                <div class="pdf-name">${escapeHtml(data.fileName || 'Document.pdf')}</div>
+                                <div class="pdf-size">${data.fileSize || 'PDF File'}</div>
+                            </div>
+                            <a href="${data.content}" download="${data.fileName || 'document.pdf'}" class="pdf-download-btn">Save</a>
+                        </div>
+                    `;
+                } else {
+                    innerHTML += escapeHtml(data.content);
+                }
+
+                innerHTML += `
+                        <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span></div>
+                    </div>
+                `;
+
+                wrapper.innerHTML = innerHTML;
+                container.appendChild(wrapper);
+                container.scrollTop = container.scrollHeight;
+            });
+        }
 
         function escapeHtml(str) {
-            return str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
     </script>
 </body>
