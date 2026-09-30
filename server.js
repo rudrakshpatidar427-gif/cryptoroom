@@ -83,11 +83,12 @@ io.on('connection', (socket) => {
         if (room && roomUsers[room]) {
             roomUsers[room].delete(socket.id);
             io.to(room).emit('room_users_update', roomUsers[room].size);
+            socket.to(room).emit('display_typing', '');
         }
     });
 });
 
 const PORT = process.env.PORT || 3000;
 server.listen(PORT, () => {
-    console.log(`CryptoRoom running smoothly on port ${PORT}`);
+    console.log(`CryptoRoom running on port ${PORT}`);
 });
