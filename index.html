@@ -218,7 +218,7 @@
             <div class="card">
                 <div class="form-group">
                     <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
+                    <input type="text" id="usernameInput" placeholder="e.g. Rudraksh Bhai" maxlength="24">
                 </div>
                 <div class="form-group">
                     <label>Cryptographic Room Code</label>
@@ -346,10 +346,10 @@
 
             let innerHTML = `
                 <div class="message-actions">
-                    <button onclick="reactMessage('${data.id}', '❤️')">❤️️</button>
+                    <button onclick="reactMessage('${data.id}', '❤️')">❤</button>
                     <button onclick="reactMessage('${data.id}', '👍')">👍</button>
                     <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
-                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑️️</button>
+                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑</button>
                 </div>
                 <div class="group-msg-header">
                     <span>~ ${escapeHtml(data.sender)}</span>
@@ -433,25 +433,29 @@
             if(!files || files.length === 0 || !currentRoom) return;
 
             for(let file of files) {
-                const fileUrl = URL.createObjectURL(file);
-                let type = 'file';
-                if(file.type.startsWith('image/')) type = 'image';
-                else if(file.type.startsWith('video/')) type = 'video';
+                const reader = new FileReader();
+                reader.onload = function(event) {
+                    const base64Data = event.target.result;
+                    let type = 'file';
+                    if(file.type.startsWith('image/')) type = 'image';
+                    else if(file.type.startsWith('video/')) type = 'video';
 
-                const msgData = {
-                    room: currentRoom,
-                    id: Math.random().toString(36).substring(2) + Date.now(),
-                    sender: myUsername,
-                    type: type,
-                    content: fileUrl,
-                    fileName: file.name,
-                    fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
-                    read: false,
-                    reactions: {},
-                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    const msgData = {
+                        room: currentRoom,
+                        id: Math.random().toString(36).substring(2) + Date.now(),
+                        sender: myUsername,
+                        type: type,
+                        content: base64Data,
+                        fileName: file.name,
+                        fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                        read: false,
+                        reactions: {},
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    };
+
+                    socket.emit('send_message', msgData);
                 };
-
-                socket.emit('send_message', msgData);
+                reader.readAsDataURL(file);
             }
             e.target.value = '';
         }
