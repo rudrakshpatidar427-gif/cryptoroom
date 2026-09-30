@@ -5,12 +5,11 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 20 * 1024 * 1024 
+    maxHttpBufferSize: 25 * 1024 * 1024 
 });
 
 app.use(express.static(__dirname));
 
-// Store history per room
 let roomHistories = {};
 
 io.on('connection', (socket) => {
