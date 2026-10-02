@@ -5,9 +5,8 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 
-// Increase payload limit to 50MB to support mobile videos/photos
 const io = new Server(server, {
-    maxHttpBufferSize: 50 * 1024 * 1024 
+    maxHttpBufferSize: 100 * 1024 * 1024 // 100MB buffer for large videos/files
 });
 
 app.use(express.static(__dirname));
@@ -35,7 +34,7 @@ io.on('connection', (socket) => {
         if (!roomHistories[room]) roomHistories[room] = [];
         
         roomHistories[room].push(msg);
-        if (roomHistories[room].length > 50) roomHistories[room].shift(); // Keep history size balanced for media
+        if (roomHistories[room].length > 40) roomHistories[room].shift(); // Keep history manageable
         
         io.to(room).emit('receive_message', msg);
     });
