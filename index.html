@@ -505,7 +505,6 @@
             };
         }
 
-        // Improved Realistic Dual-Beep Ringtone Pattern
         function playRingtone() {
             if (ringAudioInterval) return;
             try {
@@ -514,7 +513,6 @@
                     if (audioCtx.state === 'suspended') audioCtx.resume();
                     let now = audioCtx.currentTime;
                     
-                    // First pulse
                     const osc1 = audioCtx.createOscillator();
                     const gain1 = audioCtx.createGain();
                     osc1.type = 'sine';
@@ -527,7 +525,6 @@
                     osc1.start(now);
                     osc1.stop(now + 0.25);
 
-                    // Second pulse
                     const osc2 = audioCtx.createOscillator();
                     const gain2 = audioCtx.createGain();
                     osc2.type = 'sine';
@@ -550,7 +547,6 @@
             }
         }
 
-        // Caller only initiates signaling offer without capturing camera until connection is picked up
         function initiateCall() {
             socket.emit('start_call', { room: currentRoom, caller: myUsername });
             alert("Calling peer... waiting for answer.");
@@ -625,7 +621,15 @@
                 peerConnection.close();
                 peerConnection = null;
             }
-            // Re-initialize clean peer connection object so subsequent calls work
+            // Reset button toggles states
+            isAudioMuted = false;
+            isVideoOff = false;
+            document.getElementById('audioToggleBtn').classList.remove('active');
+            document.getElementById('audioToggleBtn').innerText = '🎤';
+            document.getElementById('videoToggleBtn').classList.remove('active');
+            document.getElementById('videoToggleBtn').innerText = '📹';
+
+            // Fully reinitialize peer connection so you can call again instantly
             initPeerConnection();
         }
 
@@ -636,7 +640,7 @@
         function toggleAudio() {
             if (!localStream) return;
             isAudioMuted = !isAudioMuted;
-            localStream.getAudioTracks()[0].enabled = !isAudioMuted;
+            localStream.getAudioTracks().forEach(track => { track.enabled = !isAudioMuted; });
             const btn = document.getElementById('audioToggleBtn');
             btn.classList.toggle('active', isAudioMuted);
             btn.innerText = isAudioMuted ? '🔇' : '🎤';
@@ -645,7 +649,7 @@
         function toggleVideo() {
             if (!localStream) return;
             isVideoOff = !isVideoOff;
-            localStream.getVideoTracks()[0].enabled = !isVideoOff;
+            localStream.getVideoTracks().forEach(track => { track.enabled = !isVideoOff; });
             const btn = document.getElementById('videoToggleBtn');
             btn.classList.toggle('active', isVideoOff);
             btn.innerText = isVideoOff ? '🚫' : '📹';
@@ -674,7 +678,6 @@
             }
         });
 
-        // Non-Blocking Chunked File Transfer Receiver
         function setupDataChannel() {
             let incomingFiles = {};
             dataChannel.onmessage = (e) => {
@@ -712,7 +715,6 @@
             };
         }
 
-        // Non-blocking asynchronous chunk sender to prevent browser UI lag
         function handleFileAttachment(e) {
             const file = e.target.files[0];
             if(!file || !currentRoom) return;
@@ -722,7 +724,7 @@
             if (dataChannel && dataChannel.readyState === 'open') {
                 dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, id: fileId }));
                 
-                const chunkSize = 16 * 1024; // 16KB safe chunk size
+                const chunkSize = 16 * 1024;
                 let offset = 0;
                 const reader = new FileReader();
 
@@ -731,7 +733,6 @@
                         dataChannel.send(event.target.result);
                         offset += event.target.result.byteLength;
                         if (offset < file.size) {
-                            // Use requestAnimationFrame to yield execution back to browser main thread to avoid lagging
                             requestAnimationFrame(readNextChunk);
                         } else {
                             dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
