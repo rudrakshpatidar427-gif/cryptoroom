@@ -235,7 +235,7 @@
             <div class="card">
                 <div class="form-group">
                     <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Rudraksh" maxlength="24">
+                    <input type="text" id="usernameInput" placeholder="e.g. Aayush" maxlength="24">
                 </div>
                 <div class="form-group">
                     <label>Cryptographic Room Code</label>
@@ -478,7 +478,11 @@
         }
 
         function initPeerConnection() {
-            if (peerConnection) return;
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            
             peerConnection = new RTCPeerConnection(rtcConfig);
 
             peerConnection.onicecandidate = (e) => {
@@ -549,7 +553,6 @@
 
         function initiateCall() {
             socket.emit('start_call', { room: currentRoom, caller: myUsername });
-            alert("Calling peer... waiting for answer.");
         }
 
         socket.on('incoming_call', ({ caller }) => {
@@ -587,7 +590,6 @@
 
         socket.on('call_declined', () => {
             stopRingtone();
-            alert("Call was declined.");
             endCall();
         });
 
@@ -615,13 +617,14 @@
             document.getElementById('remoteVideo').srcObject = null;
             document.getElementById('callOverlay').style.display = 'none';
             document.getElementById('ringOverlay').style.display = 'none';
+            
             socket.emit('call_ended', { room: currentRoom });
             
             if (peerConnection) {
                 peerConnection.close();
                 peerConnection = null;
             }
-            // Reset button toggles states
+
             isAudioMuted = false;
             isVideoOff = false;
             document.getElementById('audioToggleBtn').classList.remove('active');
@@ -629,12 +632,13 @@
             document.getElementById('videoToggleBtn').classList.remove('active');
             document.getElementById('videoToggleBtn').innerText = '📹';
 
-            // Fully reinitialize peer connection so you can call again instantly
             initPeerConnection();
         }
 
         socket.on('call_ended', () => {
-            endCall();
+            if (document.getElementById('callOverlay').style.display === 'flex' || document.getElementById('ringOverlay').style.display === 'flex') {
+                endCall();
+            }
         });
 
         function toggleAudio() {
