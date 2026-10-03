@@ -193,7 +193,6 @@
             justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
         }
 
-        /* WhatsApp Style Overlays */
         #callOverlay, #ringOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
             background: #0b141a; z-index: 999; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px 20px;
@@ -236,7 +235,7 @@
             <div class="card">
                 <div class="form-group">
                     <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Rudraksh" maxlength="24">
+                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
                 </div>
                 <div class="form-group">
                     <label>Cryptographic Room Code</label>
@@ -478,7 +477,6 @@
             input.value = '';
         }
 
-        // WebRTC & Call Handling (Fixed race conditions and stream binding)
         function initPeerConnection() {
             if (peerConnection) return;
             peerConnection = new RTCPeerConnection(rtcConfig);
@@ -507,25 +505,41 @@
             };
         }
 
-        // Native Web Audio API Ringtone Generator (No external files needed)
+        // Improved Realistic Dual-Beep Ringtone Pattern
         function playRingtone() {
             if (ringAudioInterval) return;
             try {
                 const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 ringAudioInterval = setInterval(() => {
                     if (audioCtx.state === 'suspended') audioCtx.resume();
-                    const osc = audioCtx.createOscillator();
-                    const gain = audioCtx.createGain();
-                    osc.type = 'sine';
-                    osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 note
-                    osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.2); // Dual tone ring
-                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
-                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
-                    osc.connect(gain);
-                    gain.connect(audioCtx.destination);
-                    osc.start();
-                    osc.stop(audioCtx.currentTime + 0.4);
-                }, 1000);
+                    let now = audioCtx.currentTime;
+                    
+                    // First pulse
+                    const osc1 = audioCtx.createOscillator();
+                    const gain1 = audioCtx.createGain();
+                    osc1.type = 'sine';
+                    osc1.frequency.setValueAtTime(440, now);
+                    osc1.frequency.setValueAtTime(480, now + 0.1);
+                    gain1.gain.setValueAtTime(0.08, now);
+                    gain1.gain.exponentialRampToValueAtTime(0.001, now + 0.25);
+                    osc1.connect(gain1);
+                    gain1.connect(audioCtx.destination);
+                    osc1.start(now);
+                    osc1.stop(now + 0.25);
+
+                    // Second pulse
+                    const osc2 = audioCtx.createOscillator();
+                    const gain2 = audioCtx.createGain();
+                    osc2.type = 'sine';
+                    osc2.frequency.setValueAtTime(440, now + 0.3);
+                    osc2.frequency.setValueAtTime(480, now + 0.4);
+                    gain2.gain.setValueAtTime(0.08, now + 0.3);
+                    gain2.gain.exponentialRampToValueAtTime(0.001, now + 0.55);
+                    osc2.connect(gain2);
+                    gain2.connect(audioCtx.destination);
+                    osc2.start(now + 0.3);
+                    osc2.stop(now + 0.55);
+                }, 2000);
             } catch(e) {}
         }
 
@@ -536,28 +550,10 @@
             }
         }
 
+        // Caller only initiates signaling offer without capturing camera until connection is picked up
         function initiateCall() {
             socket.emit('start_call', { room: currentRoom, caller: myUsername });
-            startMediaAndOffer();
-        }
-
-        async function startMediaAndOffer() {
-            try {
-                if (!peerConnection) initPeerConnection();
-                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                document.getElementById('localVideo').srcObject = localStream;
-                document.getElementById('callOverlay').style.display = 'flex';
-
-                localStream.getTracks().forEach(track => {
-                    peerConnection.addTrack(track, localStream);
-                });
-
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                socket.emit('webrtc_offer', { room: currentRoom, offer });
-            } catch (err) {
-                alert("Camera/Mic access required for calls.");
-            }
+            alert("Calling peer... waiting for answer.");
         }
 
         socket.on('incoming_call', ({ caller }) => {
@@ -580,6 +576,10 @@
                 localStream.getTracks().forEach(track => {
                     peerConnection.addTrack(track, localStream);
                 });
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('webrtc_offer', { room: currentRoom, offer });
             } catch(err) { alert("Mic/Cam access denied"); }
         }
 
@@ -595,8 +595,18 @@
             endCall();
         });
 
-        socket.on('call_accepted', () => {
+        socket.on('call_accepted', async () => {
             stopRingtone();
+            try {
+                if (!peerConnection) initPeerConnection();
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('localVideo').srcObject = localStream;
+                document.getElementById('callOverlay').style.display = 'flex';
+
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            } catch(err) { alert("Mic/Cam access denied"); }
         });
 
         function endCall() {
@@ -615,6 +625,8 @@
                 peerConnection.close();
                 peerConnection = null;
             }
+            // Re-initialize clean peer connection object so subsequent calls work
+            initPeerConnection();
         }
 
         socket.on('call_ended', () => {
@@ -643,15 +655,6 @@
             if (!peerConnection) initPeerConnection();
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
             
-            // If we receive an offer before we click accept, make sure we have media tracks ready
-            if (!localStream) {
-                try {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-                    document.getElementById('localVideo').srcObject = localStream;
-                    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                } catch(e) {}
-            }
-
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('webrtc_answer', { room: currentRoom, answer });
@@ -671,7 +674,7 @@
             }
         });
 
-        // Stable File Transfer Chunk Receiver
+        // Non-Blocking Chunked File Transfer Receiver
         function setupDataChannel() {
             let incomingFiles = {};
             dataChannel.onmessage = (e) => {
@@ -709,6 +712,7 @@
             };
         }
 
+        // Non-blocking asynchronous chunk sender to prevent browser UI lag
         function handleFileAttachment(e) {
             const file = e.target.files[0];
             if(!file || !currentRoom) return;
@@ -718,7 +722,7 @@
             if (dataChannel && dataChannel.readyState === 'open') {
                 dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, id: fileId }));
                 
-                const chunkSize = 16 * 1024;
+                const chunkSize = 16 * 1024; // 16KB safe chunk size
                 let offset = 0;
                 const reader = new FileReader();
 
@@ -727,7 +731,8 @@
                         dataChannel.send(event.target.result);
                         offset += event.target.result.byteLength;
                         if (offset < file.size) {
-                            readNextChunk();
+                            // Use requestAnimationFrame to yield execution back to browser main thread to avoid lagging
+                            requestAnimationFrame(readNextChunk);
                         } else {
                             dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
                         }
@@ -754,7 +759,6 @@
                     time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             } else {
-                // Fallback socket payload for standard images/small docs
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const msgData = {
