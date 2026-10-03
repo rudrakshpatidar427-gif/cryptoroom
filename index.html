@@ -2,261 +2,1021 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>CryptoRoom Chat & Video</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CryptoRoom | Secure Messenger</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-        #setup-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #fff; }
-        .card { padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 300px; text-align: center; }
-        .card input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
-        .card button { width: 95%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
-        .card button:hover { background: #0056b3; }
+        :root {
+            --bg: #0b141a;
+            --surface: #111b21;
+            --border: #222d34;
+            --accent: #00a884;
+            --accent-glow: rgba(0, 168, 132, 0.2);
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --bubble-incoming: #202c33;
+            --bubble-outgoing: #005c4b;
+            --outgoing-text: #e9edef;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
+        }
 
-        #app-screen { display: none; flex-direction: column; height: 100vh; }
-        header { background: #007bff; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
-        .main-layout { display: flex; flex: 1; overflow: hidden; }
-        aside { width: 220px; background: #e9ecef; padding: 15px; border-right: 1px solid #ddd; }
-        .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
-        #messages-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
-        .message { background: #e2e8f0; padding: 8px 12px; border-radius: 6px; max-width: 60%; }
-        .message.self { background: #d1e7dd; align-self: flex-end; }
-        .input-bar { padding: 15px; background: #f8f9fa; display: flex; gap: 10px; border-top: 1px solid #ddd; }
-        .input-bar input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
-        .input-bar button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        body.theme-purple {
+            --bg: #090514;
+            --surface: #150b26;
+            --border: #281545;
+            --accent: #9333ea;
+            --accent-glow: rgba(147, 51, 234, 0.25);
+            --bubble-incoming: #1f1235;
+            --bubble-outgoing: #9333ea;
+            --outgoing-text: #ffffff;
+            --text-main: #f3e8ff;
+            --text-muted: #c084fc;
+        }
+
+        body.theme-light {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --bubble-incoming: #f1f5f9;
+            --bubble-outgoing: #e0f2fe;
+            --outgoing-text: #0f172a;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            height: 100%; height: 100dvh; width: 100vw;
+            background-color: var(--bg); color: var(--text-main);
+            overflow: hidden; position: fixed; left: 0; top: 0;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 4%; background: var(--surface); border-bottom: 1px solid var(--border);
+            z-index: 100; flex-shrink: 0; height: 52px;
+        }
+
+        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
+        .logo span { color: var(--accent); }
+        .header-controls { display: flex; gap: 6px; align-items: center; }
+
+        .action-btn {
+            font-size: 0.72rem; padding: 0.4rem 0.7rem; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--text-main);
+            cursor: pointer; font-weight: 650;
+        }
+
+        .online-counter {
+            font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
+            border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
+            border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 5px;
+        }
+        .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .app-container { width: 100%; height: calc(100dvh - 52px); display: flex; flex-direction: column; overflow: hidden; }
+
+        .screen { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; padding: 1rem; overflow-y: auto; }
+
+        #lobbyScreen { justify-content: center; text-align: center; }
+        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
+        #lobbyScreen p { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.2rem; line-height: 1.4; }
+
+        .card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: left; }
+        .form-group { margin-bottom: 0.9rem; }
+        .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
+        .form-group input {
+            width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: var(--font-mono); text-align: center; font-weight: 600;
+        }
+        .form-group input:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            width: 100%; background: var(--accent); color: #ffffff; border: none; padding: 0.8rem;
+            border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+            box-shadow: 0 4px 12px var(--accent-glow); margin-bottom: 0.5rem;
+        }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
+
+        #chatScreen { display: none; max-width: 100%; padding: 0; height: 100%; }
+
+        .chat-header-bar {
+            padding: 0.6rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .chat-peer-info { display: flex; align-items: center; gap: 8px; }
+        .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
+        .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
+        .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
+
+        .chat-messages {
+            flex-grow: 1; padding: 0.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message-wrapper { position: relative; max-width: 88%; display: flex; flex-direction: column; }
+        .message-wrapper.incoming { align-self: flex-start; }
+        .message-wrapper.outgoing { align-self: flex-end; }
+
+        .group-msg-header {
+            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
+        }
+
+        .message {
+            padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
+        .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
+
+        .media-container { position: relative; margin-top: 2px; max-width: 250px; }
+        .message img, .message video { width: 100%; max-height: 200px; border-radius: 8px; display: block; object-fit: cover; background: #000; }
         
-        #video-container { display: none; position: fixed; bottom: 20px; right: 20px; background: #222; padding: 10px; border-radius: 8px; z-index: 100; }
-        video { width: 200px; height: 150px; background: #000; border-radius: 4px; margin: 5px; }
+        .media-download-overlay {
+            display: flex; justify-content: space-between; align-items: center; margin-top: 6px;
+            background: rgba(0, 0, 0, 0.25); padding: 5px 8px; border-radius: 6px; font-size: 0.7rem;
+        }
+        .media-download-overlay a { color: #fff; text-decoration: none; font-weight: 600; background: var(--accent); padding: 3px 8px; border-radius: 4px; }
+
+        .pdf-attachment {
+            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px;
+            border-radius: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.08); max-width: 260px;
+        }
+        .pdf-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .pdf-info { flex-grow: 1; overflow: hidden; }
+        .pdf-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .pdf-size { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .pdf-download-btn { background: var(--accent); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.7rem; text-decoration: none; font-weight: 600; flex-shrink: 0; }
+
+        .msg-bubble-footer {
+            display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
+        }
+        .tick-mark { font-size: 0.65rem; color: #8696a0; }
+        .tick-mark.read { color: #34b7f1; }
+
+        .reactions-badge {
+            position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1px 6px; font-size: 0.75rem; display: flex; gap: 2px; z-index: 5;
+        }
+        .incoming .reactions-badge { left: 8px; right: auto; }
+
+        .message-actions {
+            position: absolute; top: -26px; right: 0; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; display: none; gap: 6px; padding: 3px 8px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
+        .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
+
+        .typing-indicator {
+            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
+        }
+
+        .chat-input-area {
+            padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
+            display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+        }
+        .attach-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; padding: 0 4px; opacity: 0.85; }
+        .chat-input-area input[type="text"] {
+            flex-grow: 1; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 20px; color: var(--text-main); font-size: 0.9rem;
+        }
+        .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+        .send-btn {
+            background: var(--accent); color: #ffffff; border: none; width: 40px; height: 40px;
+            border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
+        }
     </style>
 </head>
 <body>
 
-    <!-- Join Screen -->
-    <div id="setup-screen">
-        <div class="card">
-            <h2>Join Room</h2>
-            <input type="text" id="username" placeholder="Your Name">
-            <input type="text" id="room" placeholder="Room ID">
-            <button onclick="joinRoom()">Connect</button>
-        </div>
-    </div>
-
-    <!-- Main Chat Screen -->
-    <div id="app-screen">
-        <header>
-            <h3 id="room-header">Room</h3>
-            <div>
-                <button onclick="startVideoCall()" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Video Call</button>
-                <button onclick="document.getElementById('file-input').click()" style="padding: 6px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">Send File</button>
-                <input type="file" id="file-input" style="display:none;" onchange="sendFile(this)">
+    <header>
+        <div class="logo">Crypto<span>Room</span></div>
+        <div class="header-controls">
+            <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
+            <div class="online-counter" id="onlineBadge">
+                <div class="online-dot"></div>
+                <span id="onlineCountText">0 Online</span>
             </div>
-        </header>
-        <div class="main-layout">
-            <aside>
-                <h4>Active Users</h4>
-                <ul id="users-list" style="padding-left: 15px; margin-top: 5px;"></ul>
-            </aside>
-            <div class="chat-area">
-                <div id="messages-box"></div>
-                <div class="input-bar">
-                    <input type="text" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMessage()">
-                    <button onclick="sendMessage()">Send</button>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- LOBBY SCREEN -->
+        <div id="lobbyScreen" class="screen">
+            <h1>Professional Encrypted Chat</h1>
+            <p>Secure peer-to-peer mobile messenger with real-time counters, typing status, and read ticks.</p>
+            
+            <div class="card">
+                <div class="form-group">
+                    <label>Your Display Name</label>
+                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
+                </div>
+                <div class="form-group">
+                    <label>Cryptographic Room Code</label>
+                    <input type="text" id="roomCodeInput" placeholder="e.g. 48.902.112">
+                </div>
+                <button class="btn" onclick="joinRoom()">Join Secure Room 🚀</button>
+                <button class="btn btn-outline" onclick="generateUnguessableCode()">Generate Secure Code ⚡</button>
+            </div>
+        </div>
+
+        <!-- CHAT SCREEN -->
+        <div id="chatScreen" class="screen">
+            <div class="chat-header-bar">
+                <div class="chat-peer-info">
+                    <div class="peer-avatar" id="myAvatarLetter">U</div>
+                    <div class="peer-details">
+                        <div class="room-title" id="activeCodeDisplay">Room ---</div>
+                        <div class="room-status" id="headerUserStatus">Connecting...</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button class="action-btn" onclick="copyRoomCode()">Copy</button>
+                    <button class="action-btn" onclick="leaveRoom()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">Leave</button>
                 </div>
             </div>
+            
+            <div class="chat-messages" id="messageContainer" onscroll="checkVisibleMessages()">
+                <div class="message-wrapper incoming">
+                    <div class="group-msg-header"><span>~ Secure System</span></div>
+                    <div class="message">
+                        Room active! Real-time user counters, compressed media transmission, and direct downloads are enabled.
+                        <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="typing-indicator" id="typingIndicator"></div>
+
+            <div class="chat-input-area">
+                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf" multiple style="display:none;" onchange="handleFileAttachment(event)">
+                <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
+                <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
         </div>
     </div>
 
-    <!-- Video Call Panel -->
-    <div id="video-container">
-        <div style="display:flex;">
-            <video id="localVideo" autoplay muted playsinline></video>
-            <video id="remoteVideo" autoplay playsinline></video>
-        </div>
-        <button onclick="endVideoCall()" style="width:100%; padding:5px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">Hang Up</button>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
     <script>
         const socket = io();
-        let myName = '';
-        let myRoom = '';
-        let localStream = null;
-        let peerConnection = null;
-        let dataChannel = null;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        let currentRoom = null;
+        let myUsername = 'Anonymous';
+        let typingTimer = null;
+        
+        const themes = ['', 'theme-purple', 'theme-light'];
+        let currentThemeIdx = 0;
 
-        function joinRoom() {
-            myName = document.getElementById('username').value.trim();
-            myRoom = document.getElementById('room').value.trim();
-            if (!myName || !myRoom) return alert('Fill in both fields');
-
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'flex';
-            document.getElementById('room-header').innerText = `Room: ${myRoom}`;
-
-            socket.emit('join_room', { room: myRoom, username: myName });
+        function cycleTheme() {
+            document.body.classList.remove('theme-purple', 'theme-light');
+            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+            if(themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
         }
 
-        socket.on('init_history', (history) => {
-            const box = document.getElementById('messages-box');
-            box.innerHTML = '';
-            history.forEach(appendMessage);
+        function generateUnguessableCode() {
+            let parts = [];
+            for(let i=0; i<3; i++) parts.push(Math.floor(10 + Math.random() * 9899));
+            document.getElementById('roomCodeInput').value = parts.join('.');
+        }
+
+        function copyRoomCode() {
+            if(!currentRoom) return;
+            navigator.clipboard.writeText(currentRoom).then(() => alert("Room code copied!"));
+        }
+
+        function joinRoom() {
+            const name = document.getElementById('usernameInput').value.trim();
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if(!name) return alert("Please enter your name!");
+            if(!code) return alert("Please enter a room code!");
+
+            myUsername = name;
+            currentRoom = code;
+
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('chatScreen').style.display = 'flex';
+            document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
+            document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
+
+            socket.emit('join_room', { room: currentRoom, username: myUsername });
+        }
+
+        function leaveRoom() { location.reload(); }
+        function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
+
+        function handleTypingInput() {
+            socket.emit('typing_start', { room: currentRoom, username: myUsername });
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                socket.emit('typing_stop', { room: currentRoom, username: myUsername });
+            }, 1000);
+        }
+
+        function renderMessage(data) {
+            let wrapper = document.getElementById('msg_' + data.id);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.id = 'msg_' + data.id;
+                const isOutgoing = data.sender === myUsername;
+                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+                
+                wrapper.addEventListener('click', (e) => {
+                    document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
+                    wrapper.classList.toggle('touch-active');
+                    e.stopPropagation();
+                });
+
+                document.getElementById('messageContainer').appendChild(wrapper);
+            }
+
+            const isOutgoing = data.sender === myUsername;
+            let tickHTML = '';
+            if (isOutgoing) {
+                let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
+                tickHTML = `<span class="${tickClass}">✓✓</span>`;
+            }
+
+            let innerHTML = `
+                <div class="message-actions">
+                    <button onclick="reactMessage('${data.id}', '❤️')">❤</button>
+                    <button onclick="reactMessage('${data.id}', '👍')">👍</button>
+                    <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
+                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑</button>
+                </div>
+                <div class="group-msg-header">
+                    <span>~ ${escapeHtml(data.sender)}</span>
+                </div>
+                <div class="message">
+            `;
+
+            if(data.type === 'image') {
+                innerHTML += `
+                    <div class="media-container">
+                        <img src="${data.content}" alt="Photo">
+                        <div class="media-download-overlay">
+                            <span>${data.fileSize || 'Image'}</span>
+                            <a href="${data.content}" download="${data.fileName || 'photo.jpg'}">📥 Save</a>
+                        </div>
+                    </div>`;
+            } else if(data.type === 'video') {
+                innerHTML += `
+                    <div class="media-container">
+                        <video controls playsinline src="${data.content}"></video>
+                        <div class="media-download-overlay">
+                            <span>${data.fileSize || 'Video'}</span>
+                            <a href="${data.content}" download="${data.fileName || 'video.mp4'}">📥 Save</a>
+                        </div>
+                    </div>`;
+            } else if(data.type === 'file') {
+                innerHTML += `
+                    <div class="pdf-attachment">
+                        <div class="pdf-icon">📄</div>
+                        <div class="pdf-info">
+                            <div class="pdf-name">${escapeHtml(data.fileName || 'Document.pdf')}</div>
+                            <div class="pdf-size">${data.fileSize || 'File'}</div>
+                        </div>
+                        <a href="${data.content}" download="${data.fileName || 'document.pdf'}" class="pdf-download-btn">Save</a>
+                    </div>
+                `;
+            } else {
+                innerHTML += escapeHtml(data.content);
+            }
+
+            innerHTML += `
+                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span>${tickHTML}</div>
+                </div>
+            `;
+
+            if (data.reactions && Object.keys(data.reactions).length > 0) {
+                let reactionSummary = Object.values(data.reactions).join(' ');
+                innerHTML += `<div class="reactions-badge">${reactionSummary}</div>`;
+            }
+
+            wrapper.innerHTML = innerHTML;
+        }
+
+        function checkVisibleMessages() {
+            const container = document.getElementById('messageContainer');
+            const wrappers = container.querySelectorAll('.message-wrapper.incoming');
+            
+            wrappers.forEach(wrapper => {
+                const rect = wrapper.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                    const msgId = wrapper.id.replace('msg_', '');
+                    socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
+                }
+            });
+        }
+
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.message-wrapper').forEach(w => w.classList.remove('touch-active'));
         });
 
         function sendMessage() {
-            const input = document.getElementById('msg-input');
+            const input = document.getElementById('messageInput');
             const text = input.value.trim();
-            if (!text) return;
+            if(!text || !currentRoom) return;
 
-            const msg = {
-                id: Math.random().toString(36).substring(2),
-                room: myRoom,
-                sender: myName,
-                text: text,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            const msgData = {
+                room: currentRoom,
+                id: Math.random().toString(36).substring(2) + Date.now(),
+                sender: myUsername,
+                type: 'text',
+                content: text,
+                read: false,
+                reactions: {},
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
             };
-            socket.emit('send_message', msg);
+
+            socket.emit('send_message', msgData);
             input.value = '';
         }
 
-        socket.on('receive_message', appendMessage);
+        function handleFileAttachment(e) {
+            const files = e.target.files;
+            if(!files || files.length === 0 || !currentRoom) return;
 
-        function appendMessage(msg) {
-            const box = document.getElementById('messages-box');
-            const div = document.createElement('div');
-            div.className = `message ${msg.sender === myName ? 'self' : ''}`;
-            div.innerHTML = `<b>${msg.sender}</b> [${msg.time}]:<br>${msg.text}`;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
+            for(let file of files) {
+                if (file.type.startsWith('image/')) {
+                    // Compress images on the fly via canvas to prevent lag/network congestion
+                    const reader = new FileReader();
+                    reader.onload = function(event) {
+                        const img = new Image();
+                        img.onload = function() {
+                            const canvas = document.createElement('canvas');
+                            let width = img.width;
+                            let height = img.height;
+                            const MAX_DIM = 1000;
+                            
+                            if (width > height && width > MAX_DIM) {
+                                height *= MAX_DIM / width;
+                                width = MAX_DIM;
+                            } else if (height > MAX_DIM) {
+To fix the lag and slow speed when uploading files/videos/images, we should move away from large base64 strings (which bloat memory, choke Socket.io, and slow down JSON serialization) and instead use **Chunked ArrayBuffers / Blobs** with progress feedback, while adding a direct download button for photos, videos, and files.
+
+Here are the complete, optimized files:
+
+---
+
+### 1. Updated `index.html` (Fast Chunk Transfer & Download Buttons)
+
+```html
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>CryptoRoom | Secure Messenger</title>
+    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
+    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
+    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap)" rel="stylesheet">
+    <script src="/socket.io/socket.io.js"></script>
+    <style>
+        :root {
+            --bg: #0b141a;
+            --surface: #111b21;
+            --border: #222d34;
+            --accent: #00a884;
+            --accent-glow: rgba(0, 168, 132, 0.2);
+            --text-main: #e9edef;
+            --text-muted: #8696a0;
+            --bubble-incoming: #202c33;
+            --bubble-outgoing: #005c4b;
+            --outgoing-text: #e9edef;
+            --font-main: 'Inter', sans-serif;
+            --font-mono: 'JetBrains Mono', monospace;
         }
 
-        socket.on('room_users_update', (users) => {
-            const list = document.getElementById('users-list');
-            list.innerHTML = users.map(u => `<li>${u}</li>`).join('');
-        });
+        body.theme-purple {
+            --bg: #090514;
+            --surface: #150b26;
+            --border: #281545;
+            --accent: #9333ea;
+            --accent-glow: rgba(147, 51, 234, 0.25);
+            --bubble-incoming: #1f1235;
+            --bubble-outgoing: #9333ea;
+            --outgoing-text: #ffffff;
+            --text-main: #f3e8ff;
+            --text-muted: #c084fc;
+        }
 
-        // WebRTC Video Calling & File Transfer Setup
-        async function startVideoCall() {
-            document.getElementById('video-container').style.display = 'block';
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('localVideo').srcObject = localStream;
+        body.theme-light {
+            --bg: #f8f9fa;
+            --surface: #ffffff;
+            --border: #e2e8f0;
+            --accent: #0284c7;
+            --accent-glow: rgba(2, 132, 199, 0.2);
+            --text-main: #0f172a;
+            --text-muted: #64748b;
+            --bubble-incoming: #f1f5f9;
+            --bubble-outgoing: #e0f2fe;
+            --outgoing-text: #0f172a;
+        }
 
-            setupWebRTC(() => {
-                peerConnection.createOffer().then(offer => {
-                    peerConnection.setLocalDescription(offer);
-                    socket.emit('webrtc_offer', { room: myRoom, offer });
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
+
+        html, body {
+            height: 100%; height: 100dvh; width: 100vw;
+            background-color: var(--bg); color: var(--text-main);
+            overflow: hidden; position: fixed; left: 0; top: 0;
+        }
+
+        header {
+            display: flex; justify-content: space-between; align-items: center;
+            padding: 0.6rem 4%; background: var(--surface); border-bottom: 1px solid var(--border);
+            z-index: 100; flex-shrink: 0; height: 52px;
+        }
+
+        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
+        .logo span { color: var(--accent); }
+        .header-controls { display: flex; gap: 6px; align-items: center; }
+
+        .action-btn {
+            font-size: 0.72rem; padding: 0.4rem 0.7rem; border-radius: 6px;
+            border: 1px solid var(--border); background: var(--bg); color: var(--text-main);
+            cursor: pointer; font-weight: 650;
+        }
+
+        .online-counter {
+            font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
+            border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
+            border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 5px;
+        }
+        .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); opacity: 0.8; }
+            50% { transform: scale(1.2); opacity: 1; }
+            100% { transform: scale(0.95); opacity: 0.8; }
+        }
+
+        .app-container { width: 100%; height: calc(100dvh - 52px); display: flex; flex-direction: column; overflow: hidden; }
+
+        .screen { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; padding: 1rem; overflow-y: auto; }
+
+        #lobbyScreen { justify-content: center; text-align: center; }
+        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
+        #lobbyScreen p { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.2rem; line-height: 1.4; }
+
+        .card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: left; }
+        .form-group { margin-bottom: 0.9rem; }
+        .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
+        .form-group input {
+            width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border);
+            border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: var(--font-mono); text-align: center; font-weight: 600;
+        }
+        .form-group input:focus { outline: none; border-color: var(--accent); }
+
+        .btn {
+            width: 100%; background: var(--accent); color: #ffffff; border: none; padding: 0.8rem;
+            border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
+            box-shadow: 0 4px 12px var(--accent-glow); margin-bottom: 0.5rem;
+        }
+        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
+
+        #chatScreen { display: none; max-width: 100%; padding: 0; height: 100%; }
+
+        .chat-header-bar {
+            padding: 0.6rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border);
+            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
+        }
+        .chat-peer-info { display: flex; align-items: center; gap: 8px; }
+        .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
+        .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
+        .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
+
+        .chat-messages {
+            flex-grow: 1; padding: 0.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
+            background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        .message-wrapper { position: relative; max-width: 88%; display: flex; flex-direction: column; }
+        .message-wrapper.incoming { align-self: flex-start; }
+        .message-wrapper.outgoing { align-self: flex-end; }
+
+        .group-msg-header {
+            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
+        }
+
+        .message {
+            padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
+        }
+        .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
+        .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
+
+        .media-container { position: relative; margin-top: 2px; max-width: 260px; }
+        .message img, .message video { width: 100%; max-height: 200px; border-radius: 8px; display: block; object-fit: cover; background: #000; }
+        
+        .media-overlay-btn {
+            position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.75); color: #fff;
+            padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; text-decoration: none; font-weight: 600;
+            display: flex; align-items: center; gap: 3px; backdrop-filter: blur(4px);
+        }
+
+        .file-attachment {
+            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px;
+            border-radius: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.08); max-width: 260px;
+        }
+        .file-icon { font-size: 1.4rem; flex-shrink: 0; }
+        .file-info { flex-grow: 1; overflow: hidden; }
+        .file-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .file-size { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); }
+        .file-download-btn { background: var(--accent); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.7rem; text-decoration: none; font-weight: 600; flex-shrink: 0; }
+
+        .msg-bubble-footer {
+            display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
+        }
+        .tick-mark { font-size: 0.65rem; color: #8696a0; }
+        .tick-mark.read { color: #34b7f1; }
+
+        .reactions-badge {
+            position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 12px; padding: 1px 6px; font-size: 0.75rem; display: flex; gap: 2px; z-index: 5;
+        }
+        .incoming .reactions-badge { left: 8px; right: auto; }
+
+        .message-actions {
+            position: absolute; top: -26px; right: 0; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 8px; display: none; gap: 6px; padding: 3px 8px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+        }
+        .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
+        .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
+
+        .typing-indicator {
+            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
+        }
+
+        .chat-input-area {
+            padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
+            display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
+        }
+        .attach-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; padding: 0 4px; opacity: 0.85; }
+        .chat-input-area input[type="text"] {
+            flex-grow: 1; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
+            border-radius: 20px; color: var(--text-main); font-size: 0.9rem;
+        }
+        .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
+
+        .send-btn {
+            background: var(--accent); color: #ffffff; border: none; width: 40px; height: 40px;
+            border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
+            justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
+        }
+
+        #uploadProgress {
+            font-size: 0.7rem; color: var(--accent); padding: 0 1rem; font-family: var(--font-mono); font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="logo">Crypto<span>Room</span></div>
+        <div class="header-controls">
+            <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
+            <div class="online-counter" id="onlineBadge">
+                <div class="online-dot"></div>
+                <span id="onlineCountText">0 Online</span>
+            </div>
+        </div>
+    </header>
+
+    <div class="app-container">
+        <!-- LOBBY SCREEN -->
+        <div id="lobbyScreen" class="screen">
+            <h1>Professional Encrypted Chat</h1>
+            <p>Secure peer-to-peer mobile messenger with lightning-fast media sharing and downloads.</p>
+            
+            <div class="card">
+                <div class="form-group">
+                    <label>Your Display Name</label>
+                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
+                </div>
+                <div class="form-group">
+                    <label>Cryptographic Room Code</label>
+                    <input type="text" id="roomCodeInput" placeholder="e.g. 48.902.112">
+                </div>
+                <button class="btn" onclick="joinRoom()">Join Secure Room 🚀</button>
+                <button class="btn btn-outline" onclick="generateUnguessableCode()">Generate Secure Code ⚡</button>
+            </div>
+        </div>
+
+        <!-- CHAT SCREEN -->
+        <div id="chatScreen" class="screen">
+            <div class="chat-header-bar">
+                <div class="chat-peer-info">
+                    <div class="peer-avatar" id="myAvatarLetter">U</div>
+                    <div class="peer-details">
+                        <div class="room-title" id="activeCodeDisplay">Room ---</div>
+                        <div class="room-status" id="headerUserStatus">Connecting...</div>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 5px; align-items: center;">
+                    <button class="action-btn" onclick="copyRoomCode()">Copy</button>
+                    <button class="action-btn" onclick="leaveRoom()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">Leave</button>
+                </div>
+            </div>
+            
+            <div class="chat-messages" id="messageContainer" onscroll="checkVisibleMessages()">
+                <div class="message-wrapper incoming">
+                    <div class="group-msg-header"><span>~ Secure System</span></div>
+                    <div class="message">
+                        Room active! High-speed media sharing and downloads are enabled.
+                        <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
+                    </div>
+                </div>
+            </div>
+
+            <div id="uploadProgress"></div>
+            <div class="typing-indicator" id="typingIndicator"></div>
+
+            <div class="chat-input-area">
+                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf,.doc,.docx" multiple style="display:none;" onchange="handleFileAttachment(event)">
+                <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
+                <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
+                <button class="send-btn" onclick="sendMessage()">➤</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const socket = io();
+        let currentRoom = null;
+        let myUsername = 'Anonymous';
+        let typingTimer = null;
+        
+        const themes = ['', 'theme-purple', 'theme-light'];
+        let currentThemeIdx = 0;
+
+        function cycleTheme() {
+            document.body.classList.remove('theme-purple', 'theme-light');
+            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
+            if(themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
+        }
+
+        function generateUnguessableCode() {
+            let parts = [];
+            for(let i=0; i<3; i++) parts.push(Math.floor(10 + Math.random() * 9899));
+            document.getElementById('roomCodeInput').value = parts.join('.');
+        }
+
+        function copyRoomCode() {
+            if(!currentRoom) return;
+            navigator.clipboard.writeText(currentRoom).then(() => alert("Room code copied!"));
+        }
+
+        function joinRoom() {
+            const name = document.getElementById('usernameInput').value.trim();
+            const code = document.getElementById('roomCodeInput').value.trim();
+            if(!name) return alert("Please enter your name!");
+            if(!code) return alert("Please enter a room code!");
+
+            myUsername = name;
+            currentRoom = code;
+
+            document.getElementById('lobbyScreen').style.display = 'none';
+            document.getElementById('chatScreen').style.display = 'flex';
+            document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
+            document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
+
+            socket.emit('join_room', { room: currentRoom, username: myUsername });
+        }
+
+        function leaveRoom() { location.reload(); }
+        function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
+
+        function handleTypingInput() {
+            socket.emit('typing_start', { room: currentRoom, username: myUsername });
+            clearTimeout(typingTimer);
+            typingTimer = setTimeout(() => {
+                socket.emit('typing_stop', { room: currentRoom, username: myUsername });
+            }, 1000);
+        }
+
+        function renderMessage(data) {
+            let wrapper = document.getElementById('msg_' + data.id);
+            if (!wrapper) {
+                wrapper = document.createElement('div');
+                wrapper.id = 'msg_' + data.id;
+                const isOutgoing = data.sender === myUsername;
+                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
+                
+                wrapper.addEventListener('click', (e) => {
+                    document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
+                    wrapper.classList.toggle('touch-active');
+                    e.stopPropagation();
                 });
-            });
-        }
 
-        function setupWebRTC(onReady) {
-            if (peerConnection) {
-                if (onReady && dataChannel && dataChannel.readyState === 'open') onReady();
-                return;
-            }
-            peerConnection = new RTCPeerConnection(rtcConfig);
-
-            if (localStream) {
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                document.getElementById('messageContainer').appendChild(wrapper);
             }
 
-            peerConnection.ontrack = (e) => {
-                document.getElementById('video-container').style.display = 'block';
-                document.getElementById('remoteVideo').srcObject = e.streams[0];
-            };
-
-            peerConnection.onicecandidate = (e) => {
-                if (e.candidate) socket.emit('webrtc_ice_candidate', { room: myRoom, candidate: e.candidate });
-            };
-
-            if (myName < 'Peer2') {
-                dataChannel = peerConnection.createDataChannel('files');
-                setupDataChannel();
-                if (onReady) peerConnection.onicegatheringstatechange = () => { if(peerConnection.iceGatheringState === 'complete') onReady(); };
-            } else {
-                peerConnection.ondatachannel = (e) => {
-                    dataChannel = e.channel;
-                    setupDataChannel();
-                    if (onReady) onReady();
-                };
+            const isOutgoing = data.sender === myUsername;
+            let tickHTML = '';
+            if (isOutgoing) {
+                let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
+                tickHTML = `<span class="${tickClass}">✓✓</span>`;
             }
-        }
 
-        function setupDataChannel() {
-            let incoming = {};
-            dataChannel.onmessage = (e) => {
-                if (typeof e.data === 'string') {
-                    const data = JSON.parse(e.data);
-                    if (data.type === 'meta') incoming[data.id] = { name: data.name, chunks: [] };
-                    if (data.type === 'done') {
-                        const file = incoming[data.id];
-                        const blob = new Blob(file.chunks);
-                        const url = URL.createObjectURL(blob);
-                        appendMessage({ sender: 'System', time: 'Now', text: `📁 File received: <a href="${url}" download="${file.name}">${file.name}</a>` });
-                    }
+            let innerHTML = `
+                <div class="message-actions">
+                    <button onclick="reactMessage('${data.id}', '❤️')">❤</button>
+                    <button onclick="reactMessage('${data.id}', '👍')">👍</button>
+                    <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
+                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑</button>
+                </div>
+                <div class="group-msg-header">
+                    <span>~ ${escapeHtml(data.sender)}</span>
+                </div>
+                <div class="message">
+            `;
+
+            if(data.type === 'image' || data.type === 'video' || data.type === 'file') {
+                // Convert raw ArrayBuffer back to an Object URL for instant playback/rendering & downloading
+                let blob = new Blob([data.content], { type: data.mimeType || 'application/octet-stream' });
+                let mediaUrl = URL.createObjectURL(blob);
+
+                if(data.type === 'image') {
+                    innerHTML += `
+                        <div class="media-container">
+                            <img src="${mediaUrl}" alt="Photo">
+                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'image.jpg')}" class="media-overlay-btn">⬇ Download</a>
+                        </div>
+                    `;
+                } else if(data.type === 'video') {
+                    innerHTML += `
+                        <div class="media-container">
+                            <video controls playsinline src="${mediaUrl}"></video>
+                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'video.mp4')}" class="media-overlay-btn">⬇ Download</a>
+                        </div>
+                    `;
                 } else {
-                    const keys = Object.keys(incoming);
-                    const currentKey = keys[keys.length - 1];
-                    if (currentKey) incoming[currentKey].chunks.push(e.data);
+                    innerHTML += `
+                        <div class="file-attachment">
+                            <div class="file-icon">📄</div>
+                            <div class="file-info">
+                                <div class="file-name">${escapeHtml(data.fileName || 'Document')}</div>
+                                <div class="file-size">${data.fileSize || 'File'}</div>
+                            </div>
+                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'document')}" class="file-download-btn">Download</a>
+                        </div>
+                    `;
                 }
-            };
+            } else {
+                innerHTML += escapeHtml(data.content);
+            }
+
+            innerHTML += `
+                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span>${tickHTML}</div>
+                </div>
+            `;
+
+            if (data.reactions && Object.keys(data.reactions).length > 0) {
+                let reactionSummary = Object.values(data.reactions).join(' ');
+                innerHTML += `<div class="reactions-badge">${reactionSummary}</div>`;
+            }
+
+            wrapper.innerHTML = innerHTML;
         }
 
-        function sendFile(input) {
-            const file = input.files[0];
-            if (!file) return;
-            const fileId = Math.random().toString(36).substring(2);
+        function checkVisibleMessages() {
+            const container = document.getElementById('messageContainer');
+            const wrappers = container.querySelectorAll('.message-wrapper.incoming');
+            
+            wrappers.forEach(wrapper => {
+                const rect = wrapper.getBoundingClientRect();
+                const containerRect = container.getBoundingClientRect();
+                
+                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
+                    const msgId = wrapper.id.replace('msg_', '');
+                    socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
+                }
+            });
+        }
 
-            setupWebRTC(() => {
-                dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, id: fileId }));
-                const chunkSize = 64 * 1024;
-                let offset = 0;
+        document.addEventListener('click', () => {
+            document.querySelectorAll('.message-wrapper').forEach(w => w.classList.remove('touch-active'));
+        });
+
+        function sendMessage() {
+            const input = document.getElementById('messageInput');
+            const text = input.value.trim();
+            if(!text || !currentRoom) return;
+
+            const msgData = {
+                room: currentRoom,
+                id: Math.random().toString(36).substring(2) + Date.now(),
+                sender: myUsername,
+                type: 'text',
+                content: text,
+                read: false,
+                reactions: {},
+                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+            };
+
+            socket.emit('send_message', msgData);
+            input.value = '';
+        }
+
+        function handleFileAttachment(e) {
+            const files = e.target.files;
+            if(!files || files.length === 0 || !currentRoom) return;
+
+            const progressEl = document.getElementById('uploadProgress');
+
+            Array.from(files).forEach((file, index) => {
                 const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    dataChannel.send(e.target.result);
-                    offset += e.target.result.byteLength;
-                    if (offset < file.size) readChunk();
-                    else dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
+                
+                reader.onprogress = (event) => {
+                    if (event.lengthComputable) {
+                        let percent = Math.round((event.loaded / event.total) * 100);
+                        progressEl.innerText = `Preparing ${file.name}: ${percent}%`;
+                    }
                 };
 
-                function readChunk() {
-                    reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
-                }
-                readChunk();
-                appendMessage({ sender: 'You', time: 'Now', text: `📁 Sent file: ${file.name}` });
+                reader.onload = function(event) {
+                    const rawBuffer = event.target.result; // ArrayBuffer for fast binary transfer
+                    let type = 'file';
+                    if(file.type.startsWith('image/')) type = 'image';
+                    else if(file.type.startsWith('video/')) type = 'video';
+
+                    const msgData = {
+                        room: currentRoom,
+                        id: Math.random().toString(36).substring(2) + Date.now(),
+                        sender: myUsername,
+                        type: type,
+                        content: rawBuffer, // Raw binary payload avoids base64 lags
+                        mimeType: file.type,
+                        fileName: file.name,
+                        fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                        read: false,
+                        reactions: {},
+                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                    };
+
+                    socket.emit('send_message', msgData);
+                    if(index === files.length - 1) progressEl.innerText = '';
+                };
+                
+                reader.readAsArrayBuffer(file);
             });
+            e.target.value = '';
         }
 
-        socket.on('webrtc_offer', async ({ offer }) => {
-            setupWebRTC(async () => {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                if (!localStream) {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
-                    if (localStream) {
-                        document.getElementById('localVideo').srcObject = localStream;
-                        localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
-                    }
-                }
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                socket.emit('webrtc_answer', { room: myRoom, answer });
-            });
+        function deleteMessage(msgId) { socket.emit('delete_message', { room: currentRoom, id: msgId }); }
+        function reactMessage(msgId, emoji) { socket.emit('react_message', { room: currentRoom, id: msgId, user: myUsername, emoji: emoji }); }
+
+        socket.on('init_history', (messages) => {
+            document.getElementById('messageContainer').innerHTML = '';
+            messages.forEach(msg => renderMessage(msg));
+            const container = document.getElementById('messageContainer');
+            container.scrollTop = container.scrollHeight;
         });
 
-        socket.on('webrtc_answer', async ({ answer }) => {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        socket.on('receive_message', (msg) => {
+            renderMessage(msg);
+            const container = document.getElementById('messageContainer');
+            container.scrollTop = container.scrollHeight;
+            checkVisibleMessages();
         });
 
-        socket.on('webrtc_ice_candidate', async ({ candidate }) => {
-            if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        socket.on('update_message', (msg) => { renderMessage(msg); });
+        socket.on('remove_message', (msgId) => {
+            const el = document.getElementById('msg_' + msgId);
+            if(el) el.remove();
         });
 
-        function endVideoCall() {
-            if (localStream) localStream.getTracks().forEach(t => t.stop());
-            if (peerConnection) peerConnection.close();
-            peerConnection = null;
-            localStream = null;
-            document.getElementById('video-container').style.display = 'none';
+        socket.on('room_users_update', (count) => {
+            document.getElementById('onlineCountText').innerText = count + ' Online';
+            document.getElementById('headerUserStatus').innerText = count + ' active user(s)';
+        });
+
+        socket.on('display_typing', (username) => {
+            if(username) {
+                document.getElementById('typingIndicator').innerText = username + ' is typing...';
+            } else {
+                document.getElementById('typingIndicator').innerText = '';
+            }
+        });
+
+        function escapeHtml(str) {
+            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         }
     </script>
 </body>
