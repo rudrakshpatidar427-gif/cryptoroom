@@ -132,9 +132,7 @@
         .message-wrapper.incoming { align-self: flex-start; }
         .message-wrapper.outgoing { align-self: flex-end; }
 
-        .group-msg-header {
-            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
-        }
+        .group-msg-header { font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px; }
 
         .message {
             padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
@@ -174,9 +172,7 @@
         .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
         .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
 
-        .typing-indicator {
-            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
-        }
+        .typing-indicator { padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0; }
 
         .chat-input-area {
             padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
@@ -194,6 +190,17 @@
             border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
             justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
         }
+
+        /* WhatsApp Style Overlay Video Call Window */
+        #callOverlay {
+            display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
+            background: #000; z-index: 999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
+        }
+        #remoteVideo { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
+        #localVideo { width: 110px; height: 160px; object-fit: cover; border-radius: 12px; position: absolute; top: 20px; right: 20px; z-index: 2; border: 2px solid #fff; background: #222; }
+        .call-controls { position: relative; z-index: 10; margin-bottom: 30px; display: flex; gap: 20px; }
+        .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; cursor: pointer; color: white; }
+        .btn-hangup { background: #ef4444; }
     </style>
 </head>
 <body>
@@ -201,6 +208,7 @@
     <header>
         <div class="logo">Crypto<span>Room</span></div>
         <div class="header-controls">
+            <button class="action-btn" onclick="startVideoCall()" title="Start Video Call">📞 Live Call</button>
             <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
             <div class="online-counter" id="onlineBadge">
                 <div class="online-dot"></div>
@@ -249,7 +257,7 @@
                 <div class="message-wrapper incoming">
                     <div class="group-msg-header"><span>~ Secure System</span></div>
                     <div class="message">
-                        Room active! Real-time user counters, typing events, and blue read ticks are enabled.
+                        Room active! Live video calling and P2P large file sharing enabled.
                         <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
                     </div>
                 </div>
@@ -258,11 +266,20 @@
             <div class="typing-indicator" id="typingIndicator"></div>
 
             <div class="chat-input-area">
-                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf" multiple style="display:none;" onchange="handleFileAttachment(event)">
+                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf,.zip,.mp4" style="display:none;" onchange="handleFileAttachment(event)">
                 <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
                 <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
                 <button class="send-btn" onclick="sendMessage()">➤</button>
             </div>
+        </div>
+    </div>
+
+    <!-- WhatsApp Style Live Call Overlay -->
+    <div id="callOverlay">
+        <video id="remoteVideo" autoplay playsinline></video>
+        <video id="localVideo" autoplay muted playsinline></video>
+        <div class="call-controls">
+            <button class="call-btn btn-hangup" onclick="endCall()" title="Hang up">❌</button>
         </div>
     </div>
 
@@ -274,6 +291,11 @@
         
         const themes = ['', 'theme-purple', 'theme-light'];
         let currentThemeIdx = 0;
+
+        let peerConnection = null;
+        let dataChannel = null;
+        let localStream = null;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function cycleTheme() {
             document.body.classList.remove('theme-purple', 'theme-light');
@@ -307,6 +329,7 @@
             document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
 
             socket.emit('join_room', { room: currentRoom, username: myUsername });
+            initPeerConnection();
         }
 
         function leaveRoom() { location.reload(); }
@@ -366,10 +389,10 @@
                     <div class="pdf-attachment">
                         <div class="pdf-icon">📄</div>
                         <div class="pdf-info">
-                            <div class="pdf-name">${escapeHtml(data.fileName || 'Document.pdf')}</div>
-                            <div class="pdf-size">${data.fileSize || 'PDF File'}</div>
+                            <div class="pdf-name">${escapeHtml(data.fileName || 'Document')}</div>
+                            <div class="pdf-size">${data.fileSize || 'File'}</div>
                         </div>
-                        <a href="${data.content}" download="${data.fileName || 'document.pdf'}" class="pdf-download-btn">Save</a>
+                        <a href="${data.content}" download="${data.fileName || 'file'}" class="pdf-download-btn">Save</a>
                     </div>
                 `;
             } else {
@@ -428,31 +451,186 @@
             input.value = '';
         }
 
-        function handleFileAttachment(e) {
-            const files = e.target.files;
-            if(!files || files.length === 0 || !currentRoom) return;
+        // WebRTC Setup for P2P Large Files & Live Calls
+        function initPeerConnection() {
+            if (peerConnection) return;
+            peerConnection = new RTCPeerConnection(rtcConfig);
 
-            for(let file of files) {
+            peerConnection.onicecandidate = (e) => {
+                if (e.candidate) socket.emit('webrtc_ice_candidate', { room: currentRoom, candidate: e.candidate });
+            };
+
+            peerConnection.ontrack = (e) => {
+                document.getElementById('remoteVideo').srcObject = e.streams[0];
+                document.getElementById('callOverlay').style.display = 'flex';
+            };
+
+            // Setup data channel for large files
+            try {
+                dataChannel = peerConnection.createDataChannel('crypto-files');
+                setupDataChannel();
+            } catch(err) {}
+
+            peerConnection.ondatachannel = (e) => {
+                dataChannel = e.channel;
+                setupDataChannel();
+            };
+
+            // Initiate offer
+            setTimeout(() => {
+                peerConnection.createOffer().then(offer => {
+                    peerConnection.setLocalDescription(offer);
+                    socket.emit('webrtc_offer', { room: currentRoom, offer });
+                }).catch(() => {});
+            }, 1500);
+        }
+
+        async function startVideoCall() {
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('localVideo').srcObject = localStream;
+                document.getElementById('callOverlay').style.display = 'flex';
+
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('webrtc_offer', { room: currentRoom, offer });
+            } catch (err) {
+                alert("Could not access camera/microphone.");
+            }
+        }
+
+        function endCall() {
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+            document.getElementById('localVideo').srcObject = null;
+            document.getElementById('remoteVideo').srcObject = null;
+            document.getElementById('callOverlay').style.display = 'none';
+            socket.emit('call_ended', { room: currentRoom });
+        }
+
+        socket.on('call_ended', () => {
+            document.getElementById('callOverlay').style.display = 'none';
+            if (localStream) {
+                localStream.getTracks().forEach(t => t.stop());
+                localStream = null;
+            }
+        });
+
+        socket.on('webrtc_offer', async ({ offer }) => {
+            if (!peerConnection) initPeerConnection();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            // If incoming call, allow answering by attaching local stream if available
+            const answer = await peerConnection.createAnswer();
+            await peerConnection.setLocalDescription(answer);
+            socket.emit('webrtc_answer', { room: currentRoom, answer });
+        });
+
+        socket.on('webrtc_answer', async ({ answer }) => {
+            if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('webrtc_ice_candidate', async ({ candidate }) => {
+            if (peerConnection && candidate) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        // Large file chunk receiver
+        function setupDataChannel() {
+            let incomingFiles = {};
+            dataChannel.onmessage = (e) => {
+                if (typeof e.data === 'string') {
+                    const packet = JSON.parse(e.data);
+                    if (packet.type === 'meta') {
+                        incomingFiles[packet.id] = { name: packet.name, size: packet.size, chunks: [] };
+                    } else if (packet.type === 'done') {
+                        const fileObj = incomingFiles[packet.id];
+                        const blob = new Blob(fileObj.chunks);
+                        const url = URL.createObjectURL(blob);
+                        renderMessage({
+                            id: packet.id,
+                            room: currentRoom,
+                            sender: 'Peer (P2P File)',
+                            type: 'file',
+                            content: url,
+                            fileName: fileObj.name,
+                            fileSize: (fileObj.size / (1024*1024)).toFixed(1) + ' MB',
+                            read: true,
+                            reactions: {},
+                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                        });
+                    }
+                } else {
+                    const keys = Object.keys(incomingFiles);
+                    const activeKey = keys[keys.length - 1];
+                    if (activeKey) incomingFiles[activeKey].chunks.push(e.data);
+                }
+            };
+        }
+
+        function handleFileAttachment(e) {
+            const file = e.target.files[0];
+            if(!file || !currentRoom) return;
+
+            const fileId = Math.random().toString(36).substring(2) + Date.now();
+
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, size: file.size, id: fileId }));
+                
+                const chunkSize = 16 * 1024;
+                let offset = 0;
+                const reader = new FileReader();
+
+                reader.onload = (event) => {
+                    dataChannel.send(event.target.result);
+                    offset += event.target.result.byteLength;
+                    if (offset < file.size) {
+                        readNextChunk();
+                    } else {
+                        dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
+                    }
+                };
+
+                function readNextChunk() {
+                    const slice = file.slice(offset, offset + chunkSize);
+                    reader.readAsArrayBuffer(slice);
+                }
+                readNextChunk();
+
+                const localBlobUrl = URL.createObjectURL(file);
+                renderMessage({
+                    id: fileId,
+                    room: currentRoom,
+                    sender: myUsername,
+                    type: 'file',
+                    content: localBlobUrl,
+                    fileName: file.name,
+                    fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
+                    read: false,
+                    reactions: {},
+                    time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                });
+            } else {
+                // Standard image/video/small file socket upload fallback
                 const reader = new FileReader();
                 reader.onload = function(event) {
-                    const base64Data = event.target.result;
-                    let type = 'file';
-                    if(file.type.startsWith('image/')) type = 'image';
-                    else if(file.type.startsWith('video/')) type = 'video';
-
                     const msgData = {
                         room: currentRoom,
-                        id: Math.random().toString(36).substring(2) + Date.now(),
+                        id: fileId,
                         sender: myUsername,
-                        type: type,
-                        content: base64Data,
+                        type: file.type.startsWith('image/') ? 'image' : (file.type.startsWith('video/') ? 'video' : 'file'),
+                        content: event.target.result,
                         fileName: file.name,
                         fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
                         read: false,
                         reactions: {},
                         time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                     };
-
                     socket.emit('send_message', msgData);
                 };
                 reader.readAsDataURL(file);
