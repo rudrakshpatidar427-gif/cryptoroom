@@ -321,6 +321,7 @@
         let localStream = null;
         let isAudioMuted = false;
         let isVideoOff = false;
+        let ringAudioInterval = null;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function cycleTheme() {
@@ -477,17 +478,22 @@
             input.value = '';
         }
 
-        // WebRTC & Call Handling
+        // WebRTC & Call Handling (Fixed race conditions and stream binding)
         function initPeerConnection() {
             if (peerConnection) return;
             peerConnection = new RTCPeerConnection(rtcConfig);
 
             peerConnection.onicecandidate = (e) => {
-                if (e.candidate) socket.emit('webrtc_ice_candidate', { room: currentRoom, candidate: e.candidate });
+                if (e.candidate) {
+                    socket.emit('webrtc_ice_candidate', { room: currentRoom, candidate: e.candidate });
+                }
             };
 
             peerConnection.ontrack = (e) => {
-                document.getElementById('remoteVideo').srcObject = e.streams[0];
+                const remoteVideo = document.getElementById('remoteVideo');
+                if (remoteVideo.srcObject !== e.streams[0]) {
+                    remoteVideo.srcObject = e.streams[0];
+                }
             };
 
             try {
@@ -501,6 +507,35 @@
             };
         }
 
+        // Native Web Audio API Ringtone Generator (No external files needed)
+        function playRingtone() {
+            if (ringAudioInterval) return;
+            try {
+                const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                ringAudioInterval = setInterval(() => {
+                    if (audioCtx.state === 'suspended') audioCtx.resume();
+                    const osc = audioCtx.createOscillator();
+                    const gain = audioCtx.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(440, audioCtx.currentTime); // A4 note
+                    osc.frequency.setValueAtTime(480, audioCtx.currentTime + 0.2); // Dual tone ring
+                    gain.gain.setValueAtTime(0.1, audioCtx.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.4);
+                    osc.connect(gain);
+                    gain.connect(audioCtx.destination);
+                    osc.start();
+                    osc.stop(audioCtx.currentTime + 0.4);
+                }, 1000);
+            } catch(e) {}
+        }
+
+        function stopRingtone() {
+            if (ringAudioInterval) {
+                clearInterval(ringAudioInterval);
+                ringAudioInterval = null;
+            }
+        }
+
         function initiateCall() {
             socket.emit('start_call', { room: currentRoom, caller: myUsername });
             startMediaAndOffer();
@@ -508,6 +543,7 @@
 
         async function startMediaAndOffer() {
             try {
+                if (!peerConnection) initPeerConnection();
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
                 document.getElementById('callOverlay').style.display = 'flex';
@@ -527,13 +563,16 @@
         socket.on('incoming_call', ({ caller }) => {
             document.getElementById('callerNameText').innerText = caller + ' is calling...';
             document.getElementById('ringOverlay').style.display = 'flex';
+            playRingtone();
         });
 
         async function acceptCall() {
+            stopRingtone();
             document.getElementById('ringOverlay').style.display = 'none';
             socket.emit('accept_call', { room: currentRoom });
             
             try {
+                if (!peerConnection) initPeerConnection();
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
                 document.getElementById('callOverlay').style.display = 'flex';
@@ -545,20 +584,23 @@
         }
 
         function declineCall() {
+            stopRingtone();
             document.getElementById('ringOverlay').style.display = 'none';
             socket.emit('decline_call', { room: currentRoom });
         }
 
         socket.on('call_declined', () => {
+            stopRingtone();
             alert("Call was declined.");
             endCall();
         });
 
         socket.on('call_accepted', () => {
-            // Peer accepted, connection establishes via WebRTC
+            stopRingtone();
         });
 
         function endCall() {
+            stopRingtone();
             if (localStream) {
                 localStream.getTracks().forEach(t => t.stop());
                 localStream = null;
@@ -568,6 +610,11 @@
             document.getElementById('callOverlay').style.display = 'none';
             document.getElementById('ringOverlay').style.display = 'none';
             socket.emit('call_ended', { room: currentRoom });
+            
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
         }
 
         socket.on('call_ended', () => {
@@ -595,20 +642,36 @@
         socket.on('webrtc_offer', async ({ offer }) => {
             if (!peerConnection) initPeerConnection();
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+            
+            // If we receive an offer before we click accept, make sure we have media tracks ready
+            if (!localStream) {
+                try {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                    document.getElementById('localVideo').srcObject = localStream;
+                    localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                } catch(e) {}
+            }
+
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('webrtc_answer', { room: currentRoom, answer });
         });
 
         socket.on('webrtc_answer', async ({ answer }) => {
-            if (peerConnection) await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            if (peerConnection && peerConnection.signalingState !== 'stable') {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+            }
         });
 
         socket.on('webrtc_ice_candidate', async ({ candidate }) => {
-            if (peerConnection && candidate) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+            if (peerConnection && candidate) {
+                try {
+                    await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+                } catch (e) {}
+            }
         });
 
-        // Large file chunk receiver
+        // Stable File Transfer Chunk Receiver
         function setupDataChannel() {
             let incomingFiles = {};
             dataChannel.onmessage = (e) => {
@@ -618,25 +681,30 @@
                         incomingFiles[packet.id] = { name: packet.name, size: packet.size, chunks: [] };
                     } else if (packet.type === 'done') {
                         const fileObj = incomingFiles[packet.id];
-                        const blob = new Blob(fileObj.chunks);
-                        const url = URL.createObjectURL(blob);
-                        renderMessage({
-                            id: packet.id,
-                            room: currentRoom,
-                            sender: 'Peer (P2P File)',
-                            type: 'file',
-                            content: url,
-                            fileName: fileObj.name,
-                            fileSize: (fileObj.size / (1024*1024)).toFixed(1) + ' MB',
-                            read: true,
-                            reactions: {},
-                            time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                        });
+                        if (fileObj) {
+                            const blob = new Blob(fileObj.chunks);
+                            const url = URL.createObjectURL(blob);
+                            renderMessage({
+                                id: packet.id,
+                                room: currentRoom,
+                                sender: 'Peer (P2P File)',
+                                type: 'file',
+                                content: url,
+                                fileName: fileObj.name,
+                                fileSize: (fileObj.size / (1024*1024)).toFixed(1) + ' MB',
+                                read: true,
+                                reactions: {},
+                                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                            });
+                            delete incomingFiles[packet.id];
+                        }
                     }
                 } else {
                     const keys = Object.keys(incomingFiles);
                     const activeKey = keys[keys.length - 1];
-                    if (activeKey) incomingFiles[activeKey].chunks.push(e.data);
+                    if (activeKey && incomingFiles[activeKey]) {
+                        incomingFiles[activeKey].chunks.push(e.data);
+                    }
                 }
             };
         }
@@ -655,12 +723,14 @@
                 const reader = new FileReader();
 
                 reader.onload = (event) => {
-                    dataChannel.send(event.target.result);
-                    offset += event.target.result.byteLength;
-                    if (offset < file.size) {
-                        readNextChunk();
-                    } else {
-                        dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
+                    if (dataChannel.readyState === 'open') {
+                        dataChannel.send(event.target.result);
+                        offset += event.target.result.byteLength;
+                        if (offset < file.size) {
+                            readNextChunk();
+                        } else {
+                            dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
+                        }
                     }
                 };
 
@@ -684,6 +754,7 @@
                     time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             } else {
+                // Fallback socket payload for standard images/small docs
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const msgData = {
@@ -732,7 +803,6 @@
             document.getElementById('onlineCountText').innerText = count + ' Online';
             document.getElementById('headerUserStatus').innerText = count + ' active user(s)';
             
-            // Show call button only when 2 or more users are in the room
             const callBtn = document.getElementById('callBtn');
             if (count >= 2) {
                 callBtn.style.display = 'block';
