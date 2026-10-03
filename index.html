@@ -1,372 +1,70 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Secure P2P Chat & Video Suite</title>
-    <style>
-        :root {
-            --bg-color: #0f172a;
-            --panel-bg: #1e293b;
-            --accent-color: #3b82f6;
-            --accent-hover: #2563eb;
-            --text-main: #f8fafc;
-            --text-muted: #94a3b8;
-            --border-color: #334155;
-        }
-        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
-        body { background-color: var(--bg-color); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
+const express = require('express');
+const http = require('http');
+const { Server } = require('socket.io');
+
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server);
+
+app.use(express.static(__dirname));
+
+let roomHistories = {};
+let roomUsers = {};
+
+io.on('connection', (socket) => {
+    socket.on('join_room', ({ room, username }) => {
+        socket.join(room);
+        socket.roomName = room;
+        socket.userName = username;
+
+        if (!roomHistories[room]) roomHistories[room] = [];
+        if (!roomUsers[room]) roomUsers[room] = new Map();
+
+        roomUsers[room].set(socket.id, username);
+        socket.emit('init_history', roomHistories[room]);
         
-        /* Setup Screen */
-        #setup-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: var(--bg-color); }
-        .setup-card { background: var(--panel-bg); padding: 2.5rem; border-radius: 1rem; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
-        .setup-card h2 { margin-bottom: 1.5rem; text-align: center; color: var(--text-main); }
-        .setup-card input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 0.5rem; color: white; font-size: 1rem; }
-        .setup-card button { width: 100%; padding: 0.75rem; background: var(--accent-color); border: none; border-radius: 0.5rem; color: white; font-weight: bold; cursor: pointer; transition: background 0.2s; }
-        .setup-card button:hover { background: var(--accent-hover); }
+        io.to(room).emit('room_users_update', Array.from(roomUsers[room].values()));
+    });
 
-        /* Main App Layout */
-        #app-screen { display: none; height: 100vh; grid-template-columns: 280px 1fr; grid-template-rows: 60px 1fr; }
-        header { grid-column: 1 / -1; background: var(--panel-bg); display: flex; justify-content: space-between; align-items: center; padding: 0 1.5rem; border-bottom: 1px solid var(--border-color); }
-        
-        /* Sidebar */
-        sidebar { background: var(--panel-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 1rem; overflow-y: auto; }
-        sidebar h3 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
-        .user-list { list-style: none; margin-bottom: 2rem; }
-        .user-list li { padding: 0.5rem 0.75rem; border-radius: 0.4rem; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; }
-        .user-list li::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
+    socket.on('send_message', (msg) => {
+        const room = msg.room;
+        if (!roomHistories[room]) roomHistories[room] = [];
+        roomHistories[room].push(msg);
+        if (roomHistories[room].length > 100) roomHistories[room].shift();
+        io.to(room).emit('receive_message', msg);
+    });
 
-        /* Chat Area */
-        .chat-container { display: flex; flex-direction: column; height: calc(100vh - 60px); background: var(--bg-color); position: relative; }
-        .messages-box { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
-        .message { background: var(--panel-bg); padding: 0.75rem 1rem; border-radius: 0.75rem; max-width: 65%; border: 1px solid var(--border-color); position: relative; }
-        .message.self { background: #1d4ed8; align-self: flex-end; border-color: #2563eb; }
-        .message .meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; display: flex; justify-content: space-between; gap: 1rem; }
-        .message.self .meta { color: #bfdbfe; }
-        
-        /* Controls & Inputs */
-        .input-panel { padding: 1rem 1.5rem; background: var(--panel-bg); border-top: 1px solid var(--border-color); display: flex; gap: 0.75rem; align-items: center; }
-        .input-panel input[type="text"] { flex: 1; padding: 0.75rem; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 0.5rem; color: white; outline: none; }
-        .btn { background: var(--accent-color); color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: background 0.2s; }
-        .btn:hover { background: var(--accent-hover); }
-        .btn-secondary { background: #475569; }
-        .btn-secondary:hover { background: #64748b; }
-
-        /* Video Call Overlay */
-        #video-container { display: none; position: fixed; top: 70px; right: 20px; width: 420px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; overflow: pointer; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
-        #video-container video { width: 100%; height: 180px; object-fit: cover; background: black; }
-        .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--border-color); }
-        .video-toolbar { display: flex; justify-content: center; gap: 0.5rem; padding: 0.5rem; background: var(--panel-bg); }
-
-        /* Progress Bar for Massive Files */
-        .file-progress { width: 100%; background: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 0.5rem; height: 6px; }
-        .file-progress-bar { width: 0%; height: 100%; background: #22c55e; transition: width 0.1s linear; }
-    </style>
-</head>
-<body>
-
-    <!-- Setup / Login Screen -->
-    <div id="setup-screen">
-        <div class="setup-card">
-            <h2>Join Secure Session</h2>
-            <input type="text" id="username-input" placeholder="Choose a username..." />
-            <input type="text" id="room-input" placeholder="Enter Room ID..." />
-            <button onclick="joinRoom()">Connect to Room</button>
-        </div>
-    </div>
-
-    <!-- Main Chat & Video Screen -->
-    <div id="app-screen">
-        <header>
-            <h2 id="room-title" style="font-size: 1.2rem;">Room</h2>
-            <div style="display: flex; gap: 0.75rem;">
-                <button class="btn" onclick="startVideoCall()">📹 Start Video Call</button>
-                <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📁 Send Large File (3-5GB+)</button>
-                <input type="file" id="file-input" style="display: none;" onchange="handleFileSelected(this)">
-            </div>
-        </header>
-
-        <sidebar>
-            <h3>Active Users</h3>
-            <ul id="users-list" class="user-list"></ul>
-        </sidebar>
-
-        <div class="chat-container">
-            <div id="messages-box" class="messages-box"></div>
-            
-            <div class="input-panel">
-                <input type="text" id="message-input" placeholder="Type a secure message..." onkeypress="handleKeyPress(event)" />
-                <button class="btn" onclick="sendMessage()">Send</button>
-            </div>
-        </div>
-    </div>
-
-    <!-- P2P Video Call Overlay -->
-    <div id="video-container">
-        <div class="video-grid">
-            <video id="local-video" autoplay muted playsinline></video>
-            <video id="remote-video" autoplay playsinline></video>
-        </div>
-        <div class="video-toolbar">
-            <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="endVideoCall()">Hang Up</button>
-        </div>
-    </div>
-
-    <script src="/socket.io/socket.io.js"></script>
-    <script>
-        const socket = io();
-        let currentUser = '';
-        let currentRoom = '';
-        
-        // WebRTC Global State
-        let localStream = null;
-        let peerConnection = null;
-        let dataChannel = null;
-        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-
-        function joinRoom() {
-            currentUser = document.getElementById('username-input').value.trim();
-            currentRoom = document.getElementById('room-input').value.trim();
-            if (!currentUser || !currentRoom) return alert('Please enter both name and room.');
-
-            document.getElementById('setup-screen').style.display = 'none';
-            document.getElementById('app-screen').style.display = 'grid';
-            document.getElementById('room-title').innerText = `Room: ${currentRoom}`;
-
-            socket.emit('join_room', { room: currentRoom, username: currentUser });
+    socket.on('delete_message', (data) => {
+        const room = data.room;
+        if (roomHistories[room]) {
+            roomHistories[room] = roomHistories[room].filter(m => m.id !== data.id);
+            io.to(room).emit('remove_message', data.id);
         }
+    });
 
-        // --- Chat Messaging & Reactions ---
-        function sendMessage() {
-            const input = document.getElementById('message-input');
-            const text = input.value.trim();
-            if (!text) return;
+    // WebRTC Signaling for Video Calls & P2P Data Channels
+    socket.on('webrtc_offer', (data) => {
+        socket.to(data.room).emit('webrtc_offer', { offer: data.offer, sender: socket.id });
+    });
 
-            const msg = {
-                id: Math.random().toString(36.substring(2)),
-                room: currentRoom,
-                sender: currentUser,
-                text: text,
-                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                reactions: {}
-            };
+    socket.on('webrtc_answer', (data) => {
+        socket.to(data.room).emit('webrtc_answer', { answer: data.answer, sender: socket.id });
+    });
 
-            socket.emit('send_message', msg);
-            input.value = '';
+    socket.on('webrtc_ice_candidate', (data) => {
+        socket.to(data.room).emit('webrtc_ice_candidate', { candidate: data.candidate, sender: socket.id });
+    });
+
+    socket.on('disconnect', () => {
+        const room = socket.roomName;
+        if (room && roomUsers[room]) {
+            roomUsers[room].delete(socket.id);
+            io.to(room).emit('room_users_update', Array.from(roomUsers[room].values()));
         }
+    });
+});
 
-        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
-
-        socket.on('receive_message', (msg) => {
-            appendMessageNode(msg);
-        });
-
-        function appendMessageNode(msg) {
-            const box = document.getElementById('messages-box');
-            const div = document.createElement('div');
-            div.className = `message ${msg.sender === currentUser ? 'self' : ''}`;
-            div.id = `msg-${msg.id}`;
-
-            div.innerHTML = `
-                <div class="meta">
-                    <span><b>${msg.sender}</b> • ${msg.time}</span>
-                    ${msg.sender === currentUser ? `<span style="cursor:pointer; color:#f87171;" onclick="deleteMessage('${msg.id}')">Delete</span>` : ''}
-                </div>
-                <div class="content">${escapeHtml(msg.text)}</div>
-                <div class="reactions" style="margin-top: 0.3rem; font-size: 0.85rem;"></div>
-            `;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-        }
-
-        function deleteMessage(id) {
-            socket.emit('delete_message', { id, room: currentRoom });
-        }
-
-        socket.on('remove_message', (id) => {
-            const el = document.getElementById(`msg-${id}`);
-            if (el) el.remove();
-        });
-
-        socket.on('room_users_update', (users) => {
-            const list = document.getElementById('users-list');
-            list.innerHTML = users.map(u => `<li>${escapeHtml(u)}</li>`).join('');
-        });
-
-        // --- P2P Chunked File Transfer (3-5 GB+ Supported) ---
-        function handleFileSelected(input) {
-            const file = input.files[0];
-            if (!file) return;
-
-            // Create placeholder message with progress bar
-            const box = document.getElementById('messages-box');
-            const fileId = Math.random().toString(36).substring(2);
-            const div = document.createElement('div');
-            div.className = `message self`;
-            div.innerHTML = `
-                <div class="meta"><span><b>You</b> (Sending File)</span></div>
-                <div>📁 ${escapeHtml(file.name)} (${(file.size / (1024*1024)).toFixed(1)} MB)</div>
-                <div class="file-progress"><div id="prog-${fileId}" class="file-progress-bar"></div></div>
-            `;
-            box.appendChild(div);
-            box.scrollTop = box.scrollHeight;
-
-            setupWebRTCConnection(() => {
-                // Send file metadata first
-                dataChannel.send(JSON.stringify({ type: 'file_meta', name: file.name, size: file.size, fileId }));
-
-                const CHUNK_SIZE = 64 * 1024; // 64KB chunks
-                let offset = 0;
-                const reader = new FileReader();
-
-                reader.onload = (e) => {
-                    dataChannel.send(e.target.result);
-                    offset += e.target.result.byteLength;
-                    
-                    const progress = (offset / file.size) * 100;
-                    document.getElementById(`prog-${fileId}`).style.width = `${progress}%`;
-
-                    if (offset < file.size) {
-                        readNextChunk();
-                    } else {
-                        dataChannel.send(JSON.stringify({ type: 'file_complete', fileId }));
-                    }
-                };
-
-                function readNextChunk() {
-                    const slice = file.slice(offset, offset + CHUNK_SIZE);
-                    reader.readAsArrayBuffer(slice);
-                }
-
-                readNextChunk();
-            });
-        }
-
-        // --- WebRTC Video Calling & P2P Engine ---
-        async function startVideoCall() {
-            document.getElementById('video-container').style.display = 'block';
-            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
-            document.getElementById('local-video').srcObject = localStream;
-
-            setupWebRTCConnection(async () => {
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-                socket.emit('webrtc_offer', { room: currentRoom, offer });
-            });
-        }
-
-        function setupWebRTCConnection(onReady) {
-            if (peerConnection) {
-                if (onReady && dataChannel && dataChannel.readyState === 'open') onReady();
-                return;
-            }
-
-            peerConnection = new RTCPeerConnection(rtcConfig);
-
-            // Add local tracks if video call active
-            if (localStream) {
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-            }
-
-            peerConnection.ontrack = (event) => {
-                document.getElementById('video-container').style.display = 'block';
-                document.getElementById('remote-video').srcObject = event.streams[0];
-            };
-
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                    socket.emit('webrtc_ice_candidate', { room: currentRoom, candidate: event.candidate });
-                }
-            };
-
-            // DataChannel configuration for P2P File transfers
-            if (currentUser < 'Peer2') { // Arbitrary initiator rule for mesh demo
-                dataChannel = peerConnection.createDataChannel('file-transfer');
-                setupDataChannelListeners();
-                if (onReady) peerConnection.onicegatheringstatechange = () => { if(peerConnection.iceGatheringState === 'complete') onReady(); };
-            } else {
-                peerConnection.ondatachannel = (event) => {
-                    dataChannel = event.channel;
-                    setupDataChannelListeners();
-                    if (onReady) onReady();
-                };
-            }
-        }
-
-        function setupDataChannelListeners() {
-            let incomingFile = {};
-            dataChannel.onmessage = (event) => {
-                if (typeof event.data === 'string') {
-                    const data = JSON.parse(event.data);
-                    if (data.type === 'file_meta') {
-                        incomingFile[data.fileId] = { name: data.name, size: data.size, buffer: [], received: 0 };
-                    } else if (data.type === 'file_complete') {
-                        const fileMeta = incomingFile[data.fileId];
-                        const blob = new Blob(fileMeta.buffer);
-                        const url = URL.createObjectURL(blob);
-                        
-                        const box = document.getElementById('messages-box');
-                        const div = document.createElement('div');
-                        div.className = `message`;
-                        div.innerHTML = `
-                            <div class="meta"><span><b>Peer</b> (File Received)</span></div>
-                            <div>📁 <a href="${url}" download="${fileMeta.name}" style="color: #60a5fa; font-weight: bold;">Download ${escapeHtml(fileMeta.name)}</a></div>
-                        `;
-                        box.appendChild(div);
-                        box.scrollTop = box.scrollHeight;
-                    }
-                } else {
-                    // Binary chunk received
-                    const fileKeys = Object.keys(incomingFile);
-                    const activeKey = fileKeys[fileKeys.length - 1];
-                    if (activeKey) {
-                        incomingFile[activeKey].buffer.push(event.data);
-                        incomingFile[activeKey].received += event.data.byteLength;
-                    }
-                }
-            };
-        }
-
-        // Signaling handlers
-        socket.on('webrtc_offer', async ({ offer, sender }) => {
-            setupWebRTCConnection(async () => {
-                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-                if (!localStream) {
-                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
-                    if (localStream) {
-                        document.getElementById('local-video').srcObject = localStream;
-                        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-                    }
-                }
-                const answer = await peerConnection.createAnswer();
-                await peerConnection.setLocalDescription(answer);
-                socket.emit('webrtc_answer', { room: currentRoom, answer });
-            });
-        });
-
-        socket.on('webrtc_answer', async ({ answer }) => {
-            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
-        });
-
-        socket.on('webrtc_ice_candidate', async ({ candidate }) => {
-            if (peerConnection) {
-                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
-            }
-        });
-
-        function endVideoCall() {
-            if (localStream) localStream.getTracks().forEach(t => t.stop());
-            if (peerConnection) peerConnection.close();
-            peerConnection = null;
-            localStream = null;
-            document.getElementById('video-container').style.display = 'none';
-        }
-
-        function escapeHtml(text) {
-            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
-            return text.replace(/[&<>"']/g, m => map[m]);
-        }
-    </script>
-</body>
-</html>
-
+const PORT = process.env.PORT || 3000;
+server.listen(PORT, () => {
+    console.log(`Server running on port ${PORT}`);
+});
