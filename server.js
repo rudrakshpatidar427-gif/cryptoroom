@@ -73,6 +73,23 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('display_typing', null);
     });
 
+    // WhatsApp-Style Call Signaling
+    socket.on('start_call', (data) => {
+        socket.to(data.room).emit('incoming_call', { caller: data.caller });
+    });
+
+    socket.on('accept_call', (data) => {
+        socket.to(data.room).emit('call_accepted');
+    });
+
+    socket.on('decline_call', (data) => {
+        socket.to(data.room).emit('call_declined');
+    });
+
+    socket.on('call_ended', (data) => {
+        socket.to(data.room).emit('call_ended');
+    });
+
     // WebRTC Signaling for Calls & Large Files
     socket.on('webrtc_offer', (data) => {
         socket.to(data.room).emit('webrtc_offer', { offer: data.offer, sender: socket.id });
@@ -86,15 +103,12 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('webrtc_ice_candidate', { candidate: data.candidate, sender: socket.id });
     });
 
-    socket.on('call_ended', (data) => {
-        socket.to(data.room).emit('call_ended');
-    });
-
     socket.on('disconnect', () => {
         const room = socket.roomName;
         if (room && roomUsers[room]) {
             roomUsers[room].delete(socket.id);
             io.to(room).emit('room_users_update', roomUsers[room].size);
+            io.to(room).emit('call_ended');
         }
     });
 });
