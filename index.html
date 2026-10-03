@@ -1,70 +1,263 @@
-const express = require('express');
-const http = require('http');
-const { Server } = require('socket.io');
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CryptoRoom Chat & Video</title>
+    <style>
+        body { font-family: Arial, sans-serif; background: #f4f4f9; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+        #setup-screen { display: flex; flex-direction: column; justify-content: center; align-items: center; height: 100vh; background: #fff; }
+        .card { padding: 20px; background: #fff; border-radius: 8px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); width: 300px; text-align: center; }
+        .card input { width: 90%; padding: 10px; margin: 10px 0; border: 1px solid #ccc; border-radius: 4px; }
+        .card button { width: 95%; padding: 10px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .card button:hover { background: #0056b3; }
 
-const app = express();
-const server = http.createServer(app);
-const io = new Server(server);
-
-app.use(express.static(__dirname));
-
-let roomHistories = {};
-let roomUsers = {};
-
-io.on('connection', (socket) => {
-    socket.on('join_room', ({ room, username }) => {
-        socket.join(room);
-        socket.roomName = room;
-        socket.userName = username;
-
-        if (!roomHistories[room]) roomHistories[room] = [];
-        if (!roomUsers[room]) roomUsers[room] = new Map();
-
-        roomUsers[room].set(socket.id, username);
-        socket.emit('init_history', roomHistories[room]);
+        #app-screen { display: none; flex-direction: column; height: 100vh; }
+        header { background: #007bff; color: white; padding: 10px 20px; display: flex; justify-content: space-between; align-items: center; }
+        .main-layout { display: flex; flex: 1; overflow: hidden; }
+        aside { width: 220px; background: #e9ecef; padding: 15px; border-right: 1px solid #ddd; }
+        .chat-area { flex: 1; display: flex; flex-direction: column; background: #fff; }
+        #messages-box { flex: 1; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; gap: 10px; }
+        .message { background: #e2e8f0; padding: 8px 12px; border-radius: 6px; max-width: 60%; }
+        .message.self { background: #d1e7dd; align-self: flex-end; }
+        .input-bar { padding: 15px; background: #f8f9fa; display: flex; gap: 10px; border-top: 1px solid #ddd; }
+        .input-bar input { flex: 1; padding: 10px; border: 1px solid #ccc; border-radius: 4px; }
+        .input-bar button { padding: 10px 15px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
         
-        io.to(room).emit('room_users_update', Array.from(roomUsers[room].values()));
-    });
+        #video-container { display: none; position: fixed; bottom: 20px; right: 20px; background: #222; padding: 10px; border-radius: 8px; z-index: 100; }
+        video { width: 200px; height: 150px; background: #000; border-radius: 4px; margin: 5px; }
+    </style>
+</head>
+<body>
 
-    socket.on('send_message', (msg) => {
-        const room = msg.room;
-        if (!roomHistories[room]) roomHistories[room] = [];
-        roomHistories[room].push(msg);
-        if (roomHistories[room].length > 100) roomHistories[room].shift();
-        io.to(room).emit('receive_message', msg);
-    });
+    <!-- Join Screen -->
+    <div id="setup-screen">
+        <div class="card">
+            <h2>Join Room</h2>
+            <input type="text" id="username" placeholder="Your Name">
+            <input type="text" id="room" placeholder="Room ID">
+            <button onclick="joinRoom()">Connect</button>
+        </div>
+    </div>
 
-    socket.on('delete_message', (data) => {
-        const room = data.room;
-        if (roomHistories[room]) {
-            roomHistories[room] = roomHistories[room].filter(m => m.id !== data.id);
-            io.to(room).emit('remove_message', data.id);
+    <!-- Main Chat Screen -->
+    <div id="app-screen">
+        <header>
+            <h3 id="room-header">Room</h3>
+            <div>
+                <button onclick="startVideoCall()" style="padding: 6px 12px; background: #28a745; color: white; border: none; border-radius: 4px; cursor: pointer;">Video Call</button>
+                <button onclick="document.getElementById('file-input').click()" style="padding: 6px 12px; background: #17a2b8; color: white; border: none; border-radius: 4px; cursor: pointer;">Send File</button>
+                <input type="file" id="file-input" style="display:none;" onchange="sendFile(this)">
+            </div>
+        </header>
+        <div class="main-layout">
+            <aside>
+                <h4>Active Users</h4>
+                <ul id="users-list" style="padding-left: 15px; margin-top: 5px;"></ul>
+            </aside>
+            <div class="chat-area">
+                <div id="messages-box"></div>
+                <div class="input-bar">
+                    <input type="text" id="msg-input" placeholder="Type a message..." onkeypress="if(event.key==='Enter')sendMessage()">
+                    <button onclick="sendMessage()">Send</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Video Call Panel -->
+    <div id="video-container">
+        <div style="display:flex;">
+            <video id="localVideo" autoplay muted playsinline></video>
+            <video id="remoteVideo" autoplay playsinline></video>
+        </div>
+        <button onclick="endVideoCall()" style="width:100%; padding:5px; background:#dc3545; color:white; border:none; border-radius:4px; cursor:pointer;">Hang Up</button>
+    </div>
+
+    <script src="/socket.io/socket.io.js"></script>
+    <script>
+        const socket = io();
+        let myName = '';
+        let myRoom = '';
+        let localStream = null;
+        let peerConnection = null;
+        let dataChannel = null;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+        function joinRoom() {
+            myName = document.getElementById('username').value.trim();
+            myRoom = document.getElementById('room').value.trim();
+            if (!myName || !myRoom) return alert('Fill in both fields');
+
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'flex';
+            document.getElementById('room-header').innerText = `Room: ${myRoom}`;
+
+            socket.emit('join_room', { room: myRoom, username: myName });
         }
-    });
 
-    // WebRTC Signaling for Video Calls & P2P Data Channels
-    socket.on('webrtc_offer', (data) => {
-        socket.to(data.room).emit('webrtc_offer', { offer: data.offer, sender: socket.id });
-    });
+        socket.on('init_history', (history) => {
+            const box = document.getElementById('messages-box');
+            box.innerHTML = '';
+            history.forEach(appendMessage);
+        });
 
-    socket.on('webrtc_answer', (data) => {
-        socket.to(data.room).emit('webrtc_answer', { answer: data.answer, sender: socket.id });
-    });
+        function sendMessage() {
+            const input = document.getElementById('msg-input');
+            const text = input.value.trim();
+            if (!text) return;
 
-    socket.on('webrtc_ice_candidate', (data) => {
-        socket.to(data.room).emit('webrtc_ice_candidate', { candidate: data.candidate, sender: socket.id });
-    });
-
-    socket.on('disconnect', () => {
-        const room = socket.roomName;
-        if (room && roomUsers[room]) {
-            roomUsers[room].delete(socket.id);
-            io.to(room).emit('room_users_update', Array.from(roomUsers[room].values()));
+            const msg = {
+                id: Math.random().toString(36).substring(2),
+                room: myRoom,
+                sender: myName,
+                text: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+            };
+            socket.emit('send_message', msg);
+            input.value = '';
         }
-    });
-});
 
-const PORT = process.env.PORT || 3000;
-server.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+        socket.on('receive_message', appendMessage);
+
+        function appendMessage(msg) {
+            const box = document.getElementById('messages-box');
+            const div = document.createElement('div');
+            div.className = `message ${msg.sender === myName ? 'self' : ''}`;
+            div.innerHTML = `<b>${msg.sender}</b> [${msg.time}]:<br>${msg.text}`;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        socket.on('room_users_update', (users) => {
+            const list = document.getElementById('users-list');
+            list.innerHTML = users.map(u => `<li>${u}</li>`).join('');
+        });
+
+        // WebRTC Video Calling & File Transfer Setup
+        async function startVideoCall() {
+            document.getElementById('video-container').style.display = 'block';
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('localVideo').srcObject = localStream;
+
+            setupWebRTC(() => {
+                peerConnection.createOffer().then(offer => {
+                    peerConnection.setLocalDescription(offer);
+                    socket.emit('webrtc_offer', { room: myRoom, offer });
+                });
+            });
+        }
+
+        function setupWebRTC(onReady) {
+            if (peerConnection) {
+                if (onReady && dataChannel && dataChannel.readyState === 'open') onReady();
+                return;
+            }
+            peerConnection = new RTCPeerConnection(rtcConfig);
+
+            if (localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
+
+            peerConnection.ontrack = (e) => {
+                document.getElementById('video-container').style.display = 'block';
+                document.getElementById('remoteVideo').srcObject = e.streams[0];
+            };
+
+            peerConnection.onicecandidate = (e) => {
+                if (e.candidate) socket.emit('webrtc_ice_candidate', { room: myRoom, candidate: e.candidate });
+            };
+
+            if (myName < 'Peer2') {
+                dataChannel = peerConnection.createDataChannel('files');
+                setupDataChannel();
+                if (onReady) peerConnection.onicegatheringstatechange = () => { if(peerConnection.iceGatheringState === 'complete') onReady(); };
+            } else {
+                peerConnection.ondatachannel = (e) => {
+                    dataChannel = e.channel;
+                    setupDataChannel();
+                    if (onReady) onReady();
+                };
+            }
+        }
+
+        function setupDataChannel() {
+            let incoming = {};
+            dataChannel.onmessage = (e) => {
+                if (typeof e.data === 'string') {
+                    const data = JSON.parse(e.data);
+                    if (data.type === 'meta') incoming[data.id] = { name: data.name, chunks: [] };
+                    if (data.type === 'done') {
+                        const file = incoming[data.id];
+                        const blob = new Blob(file.chunks);
+                        const url = URL.createObjectURL(blob);
+                        appendMessage({ sender: 'System', time: 'Now', text: `📁 File received: <a href="${url}" download="${file.name}">${file.name}</a>` });
+                    }
+                } else {
+                    const keys = Object.keys(incoming);
+                    const currentKey = keys[keys.length - 1];
+                    if (currentKey) incoming[currentKey].chunks.push(e.data);
+                }
+            };
+        }
+
+        function sendFile(input) {
+            const file = input.files[0];
+            if (!file) return;
+            const fileId = Math.random().toString(36).substring(2);
+
+            setupWebRTC(() => {
+                dataChannel.send(JSON.stringify({ type: 'meta', name: file.name, id: fileId }));
+                const chunkSize = 64 * 1024;
+                let offset = 0;
+                const reader = new FileReader();
+
+                reader.onload = (e) => {
+                    dataChannel.send(e.target.result);
+                    offset += e.target.result.byteLength;
+                    if (offset < file.size) readChunk();
+                    else dataChannel.send(JSON.stringify({ type: 'done', id: fileId }));
+                };
+
+                function readChunk() {
+                    reader.readAsArrayBuffer(file.slice(offset, offset + chunkSize));
+                }
+                readChunk();
+                appendMessage({ sender: 'You', time: 'Now', text: `📁 Sent file: ${file.name}` });
+            });
+        }
+
+        socket.on('webrtc_offer', async ({ offer }) => {
+            setupWebRTC(async () => {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                if (!localStream) {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
+                    if (localStream) {
+                        document.getElementById('localVideo').srcObject = localStream;
+                        localStream.getTracks().forEach(t => peerConnection.addTrack(t, localStream));
+                    }
+                }
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('webrtc_answer', { room: myRoom, answer });
+            });
+        });
+
+        socket.on('webrtc_answer', async ({ answer }) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('webrtc_ice_candidate', async ({ candidate }) => {
+            if (peerConnection) await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
+        });
+
+        function endVideoCall() {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (peerConnection) peerConnection.close();
+            peerConnection = null;
+            localStream = null;
+            document.getElementById('video-container').style.display = 'none';
+        }
+    </script>
+</body>
+</html>
