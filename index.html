@@ -74,6 +74,8 @@
             cursor: pointer; font-weight: 650;
         }
 
+        #callBtn { display: none; background: var(--accent-glow); border-color: var(--accent); color: var(--accent); }
+
         .online-counter {
             font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
             border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
@@ -191,16 +193,24 @@
             justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
         }
 
-        /* WhatsApp Style Overlay Video Call Window */
-        #callOverlay {
+        /* WhatsApp Style Overlays */
+        #callOverlay, #ringOverlay {
             display: none; position: fixed; top: 0; left: 0; width: 100vw; height: 100dvh;
-            background: #000; z-index: 999; flex-direction: column; justify-content: space-between; align-items: center; padding: 20px;
+            background: #0b141a; z-index: 999; flex-direction: column; justify-content: space-between; align-items: center; padding: 40px 20px;
         }
-        #remoteVideo { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; }
-        #localVideo { width: 110px; height: 160px; object-fit: cover; border-radius: 12px; position: absolute; top: 20px; right: 20px; z-index: 2; border: 2px solid #fff; background: #222; }
-        .call-controls { position: relative; z-index: 10; margin-bottom: 30px; display: flex; gap: 20px; }
-        .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; cursor: pointer; color: white; }
-        .btn-hangup { background: #ef4444; }
+        #remoteVideo { width: 100%; height: 100%; object-fit: cover; position: absolute; top: 0; left: 0; z-index: 1; background: #000; }
+        #localVideo { width: 110px; height: 160px; object-fit: cover; border-radius: 12px; position: absolute; top: 70px; right: 20px; z-index: 2; border: 2px solid #fff; background: #222; }
+        
+        .caller-info { z-index: 10; text-align: center; margin-top: 40px; }
+        .caller-info h2 { font-size: 1.3rem; color: #fff; margin-bottom: 5px; }
+        .caller-info p { color: var(--text-muted); font-size: 0.85rem; }
+
+        .call-controls { position: relative; z-index: 10; margin-bottom: 30px; display: flex; gap: 20px; align-items: center; }
+        .call-btn { width: 60px; height: 60px; border-radius: 50%; border: none; display: flex; align-items: center; justify-content: center; font-size: 1.4rem; cursor: pointer; color: white; box-shadow: 0 4px 12px rgba(0,0,0,0.3); }
+        .btn-accept { background: #22c55e; }
+        .btn-decline, .btn-hangup { background: #ef4444; }
+        .btn-toggle { background: rgba(255,255,255,0.2); font-size: 1.1rem; }
+        .btn-toggle.active { background: #fff; color: #000; }
     </style>
 </head>
 <body>
@@ -208,7 +218,7 @@
     <header>
         <div class="logo">Crypto<span>Room</span></div>
         <div class="header-controls">
-            <button class="action-btn" onclick="startVideoCall()" title="Start Video Call">📞 Live Call</button>
+            <button class="action-btn" id="callBtn" onclick="initiateCall()" title="Live Call">📞 Call</button>
             <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
             <div class="online-counter" id="onlineBadge">
                 <div class="online-dot"></div>
@@ -257,7 +267,7 @@
                 <div class="message-wrapper incoming">
                     <div class="group-msg-header"><span>~ Secure System</span></div>
                     <div class="message">
-                        Room active! Live video calling and P2P large file sharing enabled.
+                        Room active! Call button will appear when 2+ users join.
                         <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
                     </div>
                 </div>
@@ -274,12 +284,26 @@
         </div>
     </div>
 
-    <!-- WhatsApp Style Live Call Overlay -->
+    <!-- Incoming Call Ringing Modal -->
+    <div id="ringOverlay">
+        <div class="caller-info">
+            <h2 id="callerNameText">Incoming Call...</h2>
+            <p>CryptoRoom Secure Video Call</p>
+        </div>
+        <div class="call-controls">
+            <button class="call-btn btn-decline" onclick="declineCall()" title="Decline">❌</button>
+            <button class="call-btn btn-accept" onclick="acceptCall()" title="Accept">📞</button>
+        </div>
+    </div>
+
+    <!-- Active Call Video Screen -->
     <div id="callOverlay">
         <video id="remoteVideo" autoplay playsinline></video>
         <video id="localVideo" autoplay muted playsinline></video>
         <div class="call-controls">
+            <button class="call-btn btn-toggle" id="audioToggleBtn" onclick="toggleAudio()" title="Mute/Unmute">🎤</button>
             <button class="call-btn btn-hangup" onclick="endCall()" title="Hang up">❌</button>
+            <button class="call-btn btn-toggle" id="videoToggleBtn" onclick="toggleVideo()" title="Camera On/Off">📹</button>
         </div>
     </div>
 
@@ -295,6 +319,8 @@
         let peerConnection = null;
         let dataChannel = null;
         let localStream = null;
+        let isAudioMuted = false;
+        let isVideoOff = false;
         const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function cycleTheme() {
@@ -451,7 +477,7 @@
             input.value = '';
         }
 
-        // WebRTC Setup for P2P Large Files & Live Calls
+        // WebRTC & Call Handling
         function initPeerConnection() {
             if (peerConnection) return;
             peerConnection = new RTCPeerConnection(rtcConfig);
@@ -462,10 +488,8 @@
 
             peerConnection.ontrack = (e) => {
                 document.getElementById('remoteVideo').srcObject = e.streams[0];
-                document.getElementById('callOverlay').style.display = 'flex';
             };
 
-            // Setup data channel for large files
             try {
                 dataChannel = peerConnection.createDataChannel('crypto-files');
                 setupDataChannel();
@@ -475,17 +499,14 @@
                 dataChannel = e.channel;
                 setupDataChannel();
             };
-
-            // Initiate offer
-            setTimeout(() => {
-                peerConnection.createOffer().then(offer => {
-                    peerConnection.setLocalDescription(offer);
-                    socket.emit('webrtc_offer', { room: currentRoom, offer });
-                }).catch(() => {});
-            }, 1500);
         }
 
-        async function startVideoCall() {
+        function initiateCall() {
+            socket.emit('start_call', { room: currentRoom, caller: myUsername });
+            startMediaAndOffer();
+        }
+
+        async function startMediaAndOffer() {
             try {
                 localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
                 document.getElementById('localVideo').srcObject = localStream;
@@ -499,9 +520,43 @@
                 await peerConnection.setLocalDescription(offer);
                 socket.emit('webrtc_offer', { room: currentRoom, offer });
             } catch (err) {
-                alert("Could not access camera/microphone.");
+                alert("Camera/Mic access required for calls.");
             }
         }
+
+        socket.on('incoming_call', ({ caller }) => {
+            document.getElementById('callerNameText').innerText = caller + ' is calling...';
+            document.getElementById('ringOverlay').style.display = 'flex';
+        });
+
+        async function acceptCall() {
+            document.getElementById('ringOverlay').style.display = 'none';
+            socket.emit('accept_call', { room: currentRoom });
+            
+            try {
+                localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+                document.getElementById('localVideo').srcObject = localStream;
+                document.getElementById('callOverlay').style.display = 'flex';
+
+                localStream.getTracks().forEach(track => {
+                    peerConnection.addTrack(track, localStream);
+                });
+            } catch(err) { alert("Mic/Cam access denied"); }
+        }
+
+        function declineCall() {
+            document.getElementById('ringOverlay').style.display = 'none';
+            socket.emit('decline_call', { room: currentRoom });
+        }
+
+        socket.on('call_declined', () => {
+            alert("Call was declined.");
+            endCall();
+        });
+
+        socket.on('call_accepted', () => {
+            // Peer accepted, connection establishes via WebRTC
+        });
 
         function endCall() {
             if (localStream) {
@@ -511,22 +566,35 @@
             document.getElementById('localVideo').srcObject = null;
             document.getElementById('remoteVideo').srcObject = null;
             document.getElementById('callOverlay').style.display = 'none';
+            document.getElementById('ringOverlay').style.display = 'none';
             socket.emit('call_ended', { room: currentRoom });
         }
 
         socket.on('call_ended', () => {
-            document.getElementById('callOverlay').style.display = 'none';
-            if (localStream) {
-                localStream.getTracks().forEach(t => t.stop());
-                localStream = null;
-            }
+            endCall();
         });
+
+        function toggleAudio() {
+            if (!localStream) return;
+            isAudioMuted = !isAudioMuted;
+            localStream.getAudioTracks()[0].enabled = !isAudioMuted;
+            const btn = document.getElementById('audioToggleBtn');
+            btn.classList.toggle('active', isAudioMuted);
+            btn.innerText = isAudioMuted ? '🔇' : '🎤';
+        }
+
+        function toggleVideo() {
+            if (!localStream) return;
+            isVideoOff = !isVideoOff;
+            localStream.getVideoTracks()[0].enabled = !isVideoOff;
+            const btn = document.getElementById('videoToggleBtn');
+            btn.classList.toggle('active', isVideoOff);
+            btn.innerText = isVideoOff ? '🚫' : '📹';
+        }
 
         socket.on('webrtc_offer', async ({ offer }) => {
             if (!peerConnection) initPeerConnection();
             await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
-            
-            // If incoming call, allow answering by attaching local stream if available
             const answer = await peerConnection.createAnswer();
             await peerConnection.setLocalDescription(answer);
             socket.emit('webrtc_answer', { room: currentRoom, answer });
@@ -616,7 +684,6 @@
                     time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
                 });
             } else {
-                // Standard image/video/small file socket upload fallback
                 const reader = new FileReader();
                 reader.onload = function(event) {
                     const msgData = {
@@ -664,6 +731,14 @@
         socket.on('room_users_update', (count) => {
             document.getElementById('onlineCountText').innerText = count + ' Online';
             document.getElementById('headerUserStatus').innerText = count + ' active user(s)';
+            
+            // Show call button only when 2 or more users are in the room
+            const callBtn = document.getElementById('callBtn');
+            if (count >= 2) {
+                callBtn.style.display = 'block';
+            } else {
+                callBtn.style.display = 'none';
+            }
         });
 
         socket.on('display_typing', (username) => {
