@@ -2,1022 +2,371 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CryptoRoom | Secure Messenger</title>
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
-    <script src="/socket.io/socket.io.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Secure P2P Chat & Video Suite</title>
     <style>
         :root {
-            --bg: #0b141a;
-            --surface: #111b21;
-            --border: #222d34;
-            --accent: #00a884;
-            --accent-glow: rgba(0, 168, 132, 0.2);
-            --text-main: #e9edef;
-            --text-muted: #8696a0;
-            --bubble-incoming: #202c33;
-            --bubble-outgoing: #005c4b;
-            --outgoing-text: #e9edef;
-            --font-main: 'Inter', sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
+            --bg-color: #0f172a;
+            --panel-bg: #1e293b;
+            --accent-color: #3b82f6;
+            --accent-hover: #2563eb;
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --border-color: #334155;
         }
-
-        body.theme-purple {
-            --bg: #090514;
-            --surface: #150b26;
-            --border: #281545;
-            --accent: #9333ea;
-            --accent-glow: rgba(147, 51, 234, 0.25);
-            --bubble-incoming: #1f1235;
-            --bubble-outgoing: #9333ea;
-            --outgoing-text: #ffffff;
-            --text-main: #f3e8ff;
-            --text-muted: #c084fc;
-        }
-
-        body.theme-light {
-            --bg: #f8f9fa;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --accent: #0284c7;
-            --accent-glow: rgba(2, 132, 199, 0.2);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --bubble-incoming: #f1f5f9;
-            --bubble-outgoing: #e0f2fe;
-            --outgoing-text: #0f172a;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
-
-        html, body {
-            height: 100%; height: 100dvh; width: 100vw;
-            background-color: var(--bg); color: var(--text-main);
-            overflow: hidden; position: fixed; left: 0; top: 0;
-        }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.6rem 4%; background: var(--surface); border-bottom: 1px solid var(--border);
-            z-index: 100; flex-shrink: 0; height: 52px;
-        }
-
-        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-        .logo span { color: var(--accent); }
-        .header-controls { display: flex; gap: 6px; align-items: center; }
-
-        .action-btn {
-            font-size: 0.72rem; padding: 0.4rem 0.7rem; border-radius: 6px;
-            border: 1px solid var(--border); background: var(--bg); color: var(--text-main);
-            cursor: pointer; font-weight: 650;
-        }
-
-        .online-counter {
-            font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
-            border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
-            border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 5px;
-        }
-        .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
-
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-
-        .app-container { width: 100%; height: calc(100dvh - 52px); display: flex; flex-direction: column; overflow: hidden; }
-
-        .screen { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; padding: 1rem; overflow-y: auto; }
-
-        #lobbyScreen { justify-content: center; text-align: center; }
-        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
-        #lobbyScreen p { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.2rem; line-height: 1.4; }
-
-        .card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: left; }
-        .form-group { margin-bottom: 0.9rem; }
-        .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
-        .form-group input {
-            width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border);
-            border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: var(--font-mono); text-align: center; font-weight: 600;
-        }
-        .form-group input:focus { outline: none; border-color: var(--accent); }
-
-        .btn {
-            width: 100%; background: var(--accent); color: #ffffff; border: none; padding: 0.8rem;
-            border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
-            box-shadow: 0 4px 12px var(--accent-glow); margin-bottom: 0.5rem;
-        }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
-
-        #chatScreen { display: none; max-width: 100%; padding: 0; height: 100%; }
-
-        .chat-header-bar {
-            padding: 0.6rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-        }
-        .chat-peer-info { display: flex; align-items: center; gap: 8px; }
-        .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
-        .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
-        .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
-
-        .chat-messages {
-            flex-grow: 1; padding: 0.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
-            background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .message-wrapper { position: relative; max-width: 88%; display: flex; flex-direction: column; }
-        .message-wrapper.incoming { align-self: flex-start; }
-        .message-wrapper.outgoing { align-self: flex-end; }
-
-        .group-msg-header {
-            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
-        }
-
-        .message {
-            padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
-        .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
-
-        .media-container { position: relative; margin-top: 2px; max-width: 250px; }
-        .message img, .message video { width: 100%; max-height: 200px; border-radius: 8px; display: block; object-fit: cover; background: #000; }
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: system-ui, -apple-system, sans-serif; }
+        body { background-color: var(--bg-color); color: var(--text-main); height: 100vh; display: flex; flex-direction: column; overflow: hidden; }
         
-        .media-download-overlay {
-            display: flex; justify-content: space-between; align-items: center; margin-top: 6px;
-            background: rgba(0, 0, 0, 0.25); padding: 5px 8px; border-radius: 6px; font-size: 0.7rem;
-        }
-        .media-download-overlay a { color: #fff; text-decoration: none; font-weight: 600; background: var(--accent); padding: 3px 8px; border-radius: 4px; }
+        /* Setup Screen */
+        #setup-screen { display: flex; justify-content: center; align-items: center; height: 100vh; background: var(--bg-color); }
+        .setup-card { background: var(--panel-bg); padding: 2.5rem; border-radius: 1rem; width: 100%; max-width: 400px; box-shadow: 0 10px 25px rgba(0,0,0,0.3); border: 1px solid var(--border-color); }
+        .setup-card h2 { margin-bottom: 1.5rem; text-align: center; color: var(--text-main); }
+        .setup-card input { width: 100%; padding: 0.75rem; margin-bottom: 1rem; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 0.5rem; color: white; font-size: 1rem; }
+        .setup-card button { width: 100%; padding: 0.75rem; background: var(--accent-color); border: none; border-radius: 0.5rem; color: white; font-weight: bold; cursor: pointer; transition: background 0.2s; }
+        .setup-card button:hover { background: var(--accent-hover); }
 
-        .pdf-attachment {
-            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px;
-            border-radius: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.08); max-width: 260px;
-        }
-        .pdf-icon { font-size: 1.4rem; flex-shrink: 0; }
-        .pdf-info { flex-grow: 1; overflow: hidden; }
-        .pdf-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .pdf-size { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); }
-        .pdf-download-btn { background: var(--accent); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.7rem; text-decoration: none; font-weight: 600; flex-shrink: 0; }
+        /* Main App Layout */
+        #app-screen { display: none; height: 100vh; grid-template-columns: 280px 1fr; grid-template-rows: 60px 1fr; }
+        header { grid-column: 1 / -1; background: var(--panel-bg); display: flex; justify-content: space-between; align-items: center; padding: 0 1.5rem; border-bottom: 1px solid var(--border-color); }
+        
+        /* Sidebar */
+        sidebar { background: var(--panel-bg); border-right: 1px solid var(--border-color); display: flex; flex-direction: column; padding: 1rem; overflow-y: auto; }
+        sidebar h3 { font-size: 0.9rem; color: var(--text-muted); text-transform: uppercase; margin-bottom: 0.75rem; letter-spacing: 0.05em; }
+        .user-list { list-style: none; margin-bottom: 2rem; }
+        .user-list li { padding: 0.5rem 0.75rem; border-radius: 0.4rem; font-size: 0.95rem; display: flex; align-items: center; gap: 0.5rem; }
+        .user-list li::before { content: ''; display: inline-block; width: 8px; height: 8px; background: #22c55e; border-radius: 50%; }
 
-        .msg-bubble-footer {
-            display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
-        }
-        .tick-mark { font-size: 0.65rem; color: #8696a0; }
-        .tick-mark.read { color: #34b7f1; }
+        /* Chat Area */
+        .chat-container { display: flex; flex-direction: column; height: calc(100vh - 60px); background: var(--bg-color); position: relative; }
+        .messages-box { flex: 1; padding: 1.5rem; overflow-y: auto; display: flex; flex-direction: column; gap: 1rem; }
+        .message { background: var(--panel-bg); padding: 0.75rem 1rem; border-radius: 0.75rem; max-width: 65%; border: 1px solid var(--border-color); position: relative; }
+        .message.self { background: #1d4ed8; align-self: flex-end; border-color: #2563eb; }
+        .message .meta { font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; display: flex; justify-content: space-between; gap: 1rem; }
+        .message.self .meta { color: #bfdbfe; }
+        
+        /* Controls & Inputs */
+        .input-panel { padding: 1rem 1.5rem; background: var(--panel-bg); border-top: 1px solid var(--border-color); display: flex; gap: 0.75rem; align-items: center; }
+        .input-panel input[type="text"] { flex: 1; padding: 0.75rem; background: var(--bg-color); border: 1px solid var(--border-color); border-radius: 0.5rem; color: white; outline: none; }
+        .btn { background: var(--accent-color); color: white; border: none; padding: 0.75rem 1.25rem; border-radius: 0.5rem; cursor: pointer; font-weight: 600; transition: background 0.2s; }
+        .btn:hover { background: var(--accent-hover); }
+        .btn-secondary { background: #475569; }
+        .btn-secondary:hover { background: #64748b; }
 
-        .reactions-badge {
-            position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1px 6px; font-size: 0.75rem; display: flex; gap: 2px; z-index: 5;
-        }
-        .incoming .reactions-badge { left: 8px; right: auto; }
+        /* Video Call Overlay */
+        #video-container { display: none; position: fixed; top: 70px; right: 20px; width: 420px; background: var(--panel-bg); border: 1px solid var(--border-color); border-radius: 0.75rem; overflow: pointer; z-index: 100; box-shadow: 0 10px 25px rgba(0,0,0,0.5); }
+        #video-container video { width: 100%; height: 180px; object-fit: cover; background: black; }
+        .video-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 2px; background: var(--border-color); }
+        .video-toolbar { display: flex; justify-content: center; gap: 0.5rem; padding: 0.5rem; background: var(--panel-bg); }
 
-        .message-actions {
-            position: absolute; top: -26px; right: 0; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 8px; display: none; gap: 6px; padding: 3px 8px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
-        .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
-
-        .typing-indicator {
-            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
-        }
-
-        .chat-input-area {
-            padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
-            display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
-        }
-        .attach-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; padding: 0 4px; opacity: 0.85; }
-        .chat-input-area input[type="text"] {
-            flex-grow: 1; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 20px; color: var(--text-main); font-size: 0.9rem;
-        }
-        .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
-
-        .send-btn {
-            background: var(--accent); color: #ffffff; border: none; width: 40px; height: 40px;
-            border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
-        }
+        /* Progress Bar for Massive Files */
+        .file-progress { width: 100%; background: var(--border-color); border-radius: 4px; overflow: hidden; margin-top: 0.5rem; height: 6px; }
+        .file-progress-bar { width: 0%; height: 100%; background: #22c55e; transition: width 0.1s linear; }
     </style>
 </head>
 <body>
 
-    <header>
-        <div class="logo">Crypto<span>Room</span></div>
-        <div class="header-controls">
-            <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
-            <div class="online-counter" id="onlineBadge">
-                <div class="online-dot"></div>
-                <span id="onlineCountText">0 Online</span>
-            </div>
+    <!-- Setup / Login Screen -->
+    <div id="setup-screen">
+        <div class="setup-card">
+            <h2>Join Secure Session</h2>
+            <input type="text" id="username-input" placeholder="Choose a username..." />
+            <input type="text" id="room-input" placeholder="Enter Room ID..." />
+            <button onclick="joinRoom()">Connect to Room</button>
         </div>
-    </header>
+    </div>
 
-    <div class="app-container">
-        <!-- LOBBY SCREEN -->
-        <div id="lobbyScreen" class="screen">
-            <h1>Professional Encrypted Chat</h1>
-            <p>Secure peer-to-peer mobile messenger with real-time counters, typing status, and read ticks.</p>
+    <!-- Main Chat & Video Screen -->
+    <div id="app-screen">
+        <header>
+            <h2 id="room-title" style="font-size: 1.2rem;">Room</h2>
+            <div style="display: flex; gap: 0.75rem;">
+                <button class="btn" onclick="startVideoCall()">📹 Start Video Call</button>
+                <button class="btn btn-secondary" onclick="document.getElementById('file-input').click()">📁 Send Large File (3-5GB+)</button>
+                <input type="file" id="file-input" style="display: none;" onchange="handleFileSelected(this)">
+            </div>
+        </header>
+
+        <sidebar>
+            <h3>Active Users</h3>
+            <ul id="users-list" class="user-list"></ul>
+        </sidebar>
+
+        <div class="chat-container">
+            <div id="messages-box" class="messages-box"></div>
             
-            <div class="card">
-                <div class="form-group">
-                    <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
-                </div>
-                <div class="form-group">
-                    <label>Cryptographic Room Code</label>
-                    <input type="text" id="roomCodeInput" placeholder="e.g. 48.902.112">
-                </div>
-                <button class="btn" onclick="joinRoom()">Join Secure Room 🚀</button>
-                <button class="btn btn-outline" onclick="generateUnguessableCode()">Generate Secure Code ⚡</button>
-            </div>
-        </div>
-
-        <!-- CHAT SCREEN -->
-        <div id="chatScreen" class="screen">
-            <div class="chat-header-bar">
-                <div class="chat-peer-info">
-                    <div class="peer-avatar" id="myAvatarLetter">U</div>
-                    <div class="peer-details">
-                        <div class="room-title" id="activeCodeDisplay">Room ---</div>
-                        <div class="room-status" id="headerUserStatus">Connecting...</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 5px; align-items: center;">
-                    <button class="action-btn" onclick="copyRoomCode()">Copy</button>
-                    <button class="action-btn" onclick="leaveRoom()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">Leave</button>
-                </div>
-            </div>
-            
-            <div class="chat-messages" id="messageContainer" onscroll="checkVisibleMessages()">
-                <div class="message-wrapper incoming">
-                    <div class="group-msg-header"><span>~ Secure System</span></div>
-                    <div class="message">
-                        Room active! Real-time user counters, compressed media transmission, and direct downloads are enabled.
-                        <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="typing-indicator" id="typingIndicator"></div>
-
-            <div class="chat-input-area">
-                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf" multiple style="display:none;" onchange="handleFileAttachment(event)">
-                <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
-                <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
-                <button class="send-btn" onclick="sendMessage()">➤</button>
+            <div class="input-panel">
+                <input type="text" id="message-input" placeholder="Type a secure message..." onkeypress="handleKeyPress(event)" />
+                <button class="btn" onclick="sendMessage()">Send</button>
             </div>
         </div>
     </div>
 
-    <script>
-        const socket = io();
-        let currentRoom = null;
-        let myUsername = 'Anonymous';
-        let typingTimer = null;
-        
-        const themes = ['', 'theme-purple', 'theme-light'];
-        let currentThemeIdx = 0;
+    <!-- P2P Video Call Overlay -->
+    <div id="video-container">
+        <div class="video-grid">
+            <video id="local-video" autoplay muted playsinline></video>
+            <video id="remote-video" autoplay playsinline></video>
+        </div>
+        <div class="video-toolbar">
+            <button class="btn btn-secondary" style="padding: 0.4rem 0.8rem; font-size: 0.8rem;" onclick="endVideoCall()">Hang Up</button>
+        </div>
+    </div>
 
-        function cycleTheme() {
-            document.body.classList.remove('theme-purple', 'theme-light');
-            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
-            if(themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
-        }
-
-        function generateUnguessableCode() {
-            let parts = [];
-            for(let i=0; i<3; i++) parts.push(Math.floor(10 + Math.random() * 9899));
-            document.getElementById('roomCodeInput').value = parts.join('.');
-        }
-
-        function copyRoomCode() {
-            if(!currentRoom) return;
-            navigator.clipboard.writeText(currentRoom).then(() => alert("Room code copied!"));
-        }
-
-        function joinRoom() {
-            const name = document.getElementById('usernameInput').value.trim();
-            const code = document.getElementById('roomCodeInput').value.trim();
-            if(!name) return alert("Please enter your name!");
-            if(!code) return alert("Please enter a room code!");
-
-            myUsername = name;
-            currentRoom = code;
-
-            document.getElementById('lobbyScreen').style.display = 'none';
-            document.getElementById('chatScreen').style.display = 'flex';
-            document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
-            document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
-
-            socket.emit('join_room', { room: currentRoom, username: myUsername });
-        }
-
-        function leaveRoom() { location.reload(); }
-        function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
-
-        function handleTypingInput() {
-            socket.emit('typing_start', { room: currentRoom, username: myUsername });
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                socket.emit('typing_stop', { room: currentRoom, username: myUsername });
-            }, 1000);
-        }
-
-        function renderMessage(data) {
-            let wrapper = document.getElementById('msg_' + data.id);
-            if (!wrapper) {
-                wrapper = document.createElement('div');
-                wrapper.id = 'msg_' + data.id;
-                const isOutgoing = data.sender === myUsername;
-                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
-                
-                wrapper.addEventListener('click', (e) => {
-                    document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
-                    wrapper.classList.toggle('touch-active');
-                    e.stopPropagation();
-                });
-
-                document.getElementById('messageContainer').appendChild(wrapper);
-            }
-
-            const isOutgoing = data.sender === myUsername;
-            let tickHTML = '';
-            if (isOutgoing) {
-                let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
-                tickHTML = `<span class="${tickClass}">✓✓</span>`;
-            }
-
-            let innerHTML = `
-                <div class="message-actions">
-                    <button onclick="reactMessage('${data.id}', '❤️')">❤</button>
-                    <button onclick="reactMessage('${data.id}', '👍')">👍</button>
-                    <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
-                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑</button>
-                </div>
-                <div class="group-msg-header">
-                    <span>~ ${escapeHtml(data.sender)}</span>
-                </div>
-                <div class="message">
-            `;
-
-            if(data.type === 'image') {
-                innerHTML += `
-                    <div class="media-container">
-                        <img src="${data.content}" alt="Photo">
-                        <div class="media-download-overlay">
-                            <span>${data.fileSize || 'Image'}</span>
-                            <a href="${data.content}" download="${data.fileName || 'photo.jpg'}">📥 Save</a>
-                        </div>
-                    </div>`;
-            } else if(data.type === 'video') {
-                innerHTML += `
-                    <div class="media-container">
-                        <video controls playsinline src="${data.content}"></video>
-                        <div class="media-download-overlay">
-                            <span>${data.fileSize || 'Video'}</span>
-                            <a href="${data.content}" download="${data.fileName || 'video.mp4'}">📥 Save</a>
-                        </div>
-                    </div>`;
-            } else if(data.type === 'file') {
-                innerHTML += `
-                    <div class="pdf-attachment">
-                        <div class="pdf-icon">📄</div>
-                        <div class="pdf-info">
-                            <div class="pdf-name">${escapeHtml(data.fileName || 'Document.pdf')}</div>
-                            <div class="pdf-size">${data.fileSize || 'File'}</div>
-                        </div>
-                        <a href="${data.content}" download="${data.fileName || 'document.pdf'}" class="pdf-download-btn">Save</a>
-                    </div>
-                `;
-            } else {
-                innerHTML += escapeHtml(data.content);
-            }
-
-            innerHTML += `
-                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span>${tickHTML}</div>
-                </div>
-            `;
-
-            if (data.reactions && Object.keys(data.reactions).length > 0) {
-                let reactionSummary = Object.values(data.reactions).join(' ');
-                innerHTML += `<div class="reactions-badge">${reactionSummary}</div>`;
-            }
-
-            wrapper.innerHTML = innerHTML;
-        }
-
-        function checkVisibleMessages() {
-            const container = document.getElementById('messageContainer');
-            const wrappers = container.querySelectorAll('.message-wrapper.incoming');
-            
-            wrappers.forEach(wrapper => {
-                const rect = wrapper.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
-                    const msgId = wrapper.id.replace('msg_', '');
-                    socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
-                }
-            });
-        }
-
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.message-wrapper').forEach(w => w.classList.remove('touch-active'));
-        });
-
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if(!text || !currentRoom) return;
-
-            const msgData = {
-                room: currentRoom,
-                id: Math.random().toString(36).substring(2) + Date.now(),
-                sender: myUsername,
-                type: 'text',
-                content: text,
-                read: false,
-                reactions: {},
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-            };
-
-            socket.emit('send_message', msgData);
-            input.value = '';
-        }
-
-        function handleFileAttachment(e) {
-            const files = e.target.files;
-            if(!files || files.length === 0 || !currentRoom) return;
-
-            for(let file of files) {
-                if (file.type.startsWith('image/')) {
-                    // Compress images on the fly via canvas to prevent lag/network congestion
-                    const reader = new FileReader();
-                    reader.onload = function(event) {
-                        const img = new Image();
-                        img.onload = function() {
-                            const canvas = document.createElement('canvas');
-                            let width = img.width;
-                            let height = img.height;
-                            const MAX_DIM = 1000;
-                            
-                            if (width > height && width > MAX_DIM) {
-                                height *= MAX_DIM / width;
-                                width = MAX_DIM;
-                            } else if (height > MAX_DIM) {
-To fix the lag and slow speed when uploading files/videos/images, we should move away from large base64 strings (which bloat memory, choke Socket.io, and slow down JSON serialization) and instead use **Chunked ArrayBuffers / Blobs** with progress feedback, while adding a direct download button for photos, videos, and files.
-
-Here are the complete, optimized files:
-
----
-
-### 1. Updated `index.html` (Fast Chunk Transfer & Download Buttons)
-
-```html
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>CryptoRoom | Secure Messenger</title>
-    <link rel="preconnect" href="[https://fonts.googleapis.com](https://fonts.googleapis.com)">
-    <link rel="preconnect" href="[https://fonts.gstatic.com](https://fonts.gstatic.com)" crossorigin>
-    <link href="[https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap](https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap)" rel="stylesheet">
     <script src="/socket.io/socket.io.js"></script>
-    <style>
-        :root {
-            --bg: #0b141a;
-            --surface: #111b21;
-            --border: #222d34;
-            --accent: #00a884;
-            --accent-glow: rgba(0, 168, 132, 0.2);
-            --text-main: #e9edef;
-            --text-muted: #8696a0;
-            --bubble-incoming: #202c33;
-            --bubble-outgoing: #005c4b;
-            --outgoing-text: #e9edef;
-            --font-main: 'Inter', sans-serif;
-            --font-mono: 'JetBrains Mono', monospace;
-        }
-
-        body.theme-purple {
-            --bg: #090514;
-            --surface: #150b26;
-            --border: #281545;
-            --accent: #9333ea;
-            --accent-glow: rgba(147, 51, 234, 0.25);
-            --bubble-incoming: #1f1235;
-            --bubble-outgoing: #9333ea;
-            --outgoing-text: #ffffff;
-            --text-main: #f3e8ff;
-            --text-muted: #c084fc;
-        }
-
-        body.theme-light {
-            --bg: #f8f9fa;
-            --surface: #ffffff;
-            --border: #e2e8f0;
-            --accent: #0284c7;
-            --accent-glow: rgba(2, 132, 199, 0.2);
-            --text-main: #0f172a;
-            --text-muted: #64748b;
-            --bubble-incoming: #f1f5f9;
-            --bubble-outgoing: #e0f2fe;
-            --outgoing-text: #0f172a;
-        }
-
-        * { margin: 0; padding: 0; box-sizing: border-box; font-family: var(--font-main); -webkit-tap-highlight-color: transparent; }
-
-        html, body {
-            height: 100%; height: 100dvh; width: 100vw;
-            background-color: var(--bg); color: var(--text-main);
-            overflow: hidden; position: fixed; left: 0; top: 0;
-        }
-
-        header {
-            display: flex; justify-content: space-between; align-items: center;
-            padding: 0.6rem 4%; background: var(--surface); border-bottom: 1px solid var(--border);
-            z-index: 100; flex-shrink: 0; height: 52px;
-        }
-
-        .logo { font-weight: 700; font-size: 1rem; color: var(--text-main); display: flex; align-items: center; gap: 6px; }
-        .logo span { color: var(--accent); }
-        .header-controls { display: flex; gap: 6px; align-items: center; }
-
-        .action-btn {
-            font-size: 0.72rem; padding: 0.4rem 0.7rem; border-radius: 6px;
-            border: 1px solid var(--border); background: var(--bg); color: var(--text-main);
-            cursor: pointer; font-weight: 650;
-        }
-
-        .online-counter {
-            font-size: 0.7rem; font-family: var(--font-mono); background: var(--accent-glow);
-            border: 1px solid var(--accent); color: var(--accent); padding: 0.3rem 0.6rem;
-            border-radius: 6px; font-weight: 600; display: flex; align-items: center; gap: 5px;
-        }
-        .online-dot { width: 5px; height: 5px; background: var(--accent); border-radius: 50%; animation: pulse 1.5s infinite; }
-
-        @keyframes pulse {
-            0% { transform: scale(0.95); opacity: 0.8; }
-            50% { transform: scale(1.2); opacity: 1; }
-            100% { transform: scale(0.95); opacity: 0.8; }
-        }
-
-        .app-container { width: 100%; height: calc(100dvh - 52px); display: flex; flex-direction: column; overflow: hidden; }
-
-        .screen { flex: 1; display: flex; flex-direction: column; width: 100%; max-width: 600px; margin: 0 auto; padding: 1rem; overflow-y: auto; }
-
-        #lobbyScreen { justify-content: center; text-align: center; }
-        #lobbyScreen h1 { font-size: 1.4rem; font-weight: 700; margin-bottom: 0.3rem; }
-        #lobbyScreen p { color: var(--text-muted); font-size: 0.82rem; margin-bottom: 1.2rem; line-height: 1.4; }
-
-        .card { background: var(--surface); border: 1px solid var(--border); padding: 1.25rem; border-radius: 14px; box-shadow: 0 8px 24px rgba(0,0,0,0.2); text-align: left; }
-        .form-group { margin-bottom: 0.9rem; }
-        .form-group label { display: block; font-size: 0.75rem; color: var(--text-muted); margin-bottom: 0.3rem; font-weight: 500; }
-        .form-group input {
-            width: 100%; padding: 0.8rem; background: var(--bg); border: 1px solid var(--border);
-            border-radius: 8px; color: var(--text-main); font-size: 0.95rem; font-family: var(--font-mono); text-align: center; font-weight: 600;
-        }
-        .form-group input:focus { outline: none; border-color: var(--accent); }
-
-        .btn {
-            width: 100%; background: var(--accent); color: #ffffff; border: none; padding: 0.8rem;
-            border-radius: 8px; font-weight: 600; font-size: 0.9rem; cursor: pointer;
-            box-shadow: 0 4px 12px var(--accent-glow); margin-bottom: 0.5rem;
-        }
-        .btn-outline { background: transparent; border: 1px solid var(--border); color: var(--text-main); box-shadow: none; }
-
-        #chatScreen { display: none; max-width: 100%; padding: 0; height: 100%; }
-
-        .chat-header-bar {
-            padding: 0.6rem 1rem; background: var(--surface); border-bottom: 1px solid var(--border);
-            display: flex; justify-content: space-between; align-items: center; flex-shrink: 0;
-        }
-        .chat-peer-info { display: flex; align-items: center; gap: 8px; }
-        .peer-avatar { width: 32px; height: 32px; background: var(--accent); border-radius: 8px; display: flex; align-items: center; justify-content: center; font-weight: 700; color: #fff; font-size: 0.85rem; }
-        .peer-details .room-title { font-size: 0.82rem; font-weight: 700; color: var(--text-main); font-family: var(--font-mono); }
-        .peer-details .room-status { font-size: 0.65rem; color: var(--accent); font-weight: 500; }
-
-        .chat-messages {
-            flex-grow: 1; padding: 0.8rem; overflow-y: auto; display: flex; flex-direction: column; gap: 0.75rem;
-            background-image: radial-gradient(var(--border) 1px, transparent 1px); background-size: 20px 20px;
-            -webkit-overflow-scrolling: touch;
-        }
-
-        .message-wrapper { position: relative; max-width: 88%; display: flex; flex-direction: column; }
-        .message-wrapper.incoming { align-self: flex-start; }
-        .message-wrapper.outgoing { align-self: flex-end; }
-
-        .group-msg-header {
-            font-size: 0.7rem; font-weight: 600; color: var(--accent); margin-bottom: 2px; padding: 0 2px;
-        }
-
-        .message {
-            padding: 0.55rem 0.75rem; border-radius: 12px; font-size: 0.88rem; word-break: break-word; line-height: 1.4; position: relative; box-shadow: 0 1px 2px rgba(0,0,0,0.1);
-        }
-        .incoming .message { background: var(--bubble-incoming); color: var(--text-main); border-top-left-radius: 3px; }
-        .outgoing .message { background: var(--bubble-outgoing); color: var(--outgoing-text); border-top-right-radius: 3px; }
-
-        .media-container { position: relative; margin-top: 2px; max-width: 260px; }
-        .message img, .message video { width: 100%; max-height: 200px; border-radius: 8px; display: block; object-fit: cover; background: #000; }
-        
-        .media-overlay-btn {
-            position: absolute; bottom: 8px; right: 8px; background: rgba(0, 0, 0, 0.75); color: #fff;
-            padding: 4px 8px; border-radius: 6px; font-size: 0.65rem; text-decoration: none; font-weight: 600;
-            display: flex; align-items: center; gap: 3px; backdrop-filter: blur(4px);
-        }
-
-        .file-attachment {
-            display: flex; align-items: center; gap: 8px; background: rgba(0,0,0,0.2); padding: 8px;
-            border-radius: 8px; margin-top: 2px; border: 1px solid rgba(255,255,255,0.08); max-width: 260px;
-        }
-        .file-icon { font-size: 1.4rem; flex-shrink: 0; }
-        .file-info { flex-grow: 1; overflow: hidden; }
-        .file-name { font-size: 0.75rem; font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-        .file-size { font-size: 0.6rem; color: var(--text-muted); font-family: var(--font-mono); }
-        .file-download-btn { background: var(--accent); color: #fff; padding: 5px 8px; border-radius: 6px; font-size: 0.7rem; text-decoration: none; font-weight: 600; flex-shrink: 0; }
-
-        .msg-bubble-footer {
-            display: inline-flex; align-items: center; gap: 3px; float: right; margin-left: 8px; margin-top: 3px; font-size: 0.6rem; font-family: var(--font-mono); opacity: 0.85;
-        }
-        .tick-mark { font-size: 0.65rem; color: #8696a0; }
-        .tick-mark.read { color: #34b7f1; }
-
-        .reactions-badge {
-            position: absolute; bottom: -10px; right: 8px; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 12px; padding: 1px 6px; font-size: 0.75rem; display: flex; gap: 2px; z-index: 5;
-        }
-        .incoming .reactions-badge { left: 8px; right: auto; }
-
-        .message-actions {
-            position: absolute; top: -26px; right: 0; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 8px; display: none; gap: 6px; padding: 3px 8px; z-index: 20; box-shadow: 0 4px 12px rgba(0,0,0,0.3);
-        }
-        .message-wrapper:hover .message-actions, .message-wrapper.touch-active .message-actions { display: flex; }
-        .message-actions button { background: none; border: none; cursor: pointer; font-size: 0.9rem; padding: 2px; }
-
-        .typing-indicator {
-            padding: 0.3rem 1rem; font-size: 0.72rem; color: var(--text-muted); font-style: italic; min-height: 20px; flex-shrink: 0;
-        }
-
-        .chat-input-area {
-            padding: 0.6rem 0.8rem; background: var(--bg); border-top: 1px solid var(--border);
-            display: flex; gap: 6px; align-items: center; flex-shrink: 0; padding-bottom: max(0.6rem, env(safe-area-inset-bottom));
-        }
-        .attach-btn { background: transparent; border: none; font-size: 1.3rem; cursor: pointer; padding: 0 4px; opacity: 0.85; }
-        .chat-input-area input[type="text"] {
-            flex-grow: 1; padding: 0.7rem 0.9rem; background: var(--surface); border: 1px solid var(--border);
-            border-radius: 20px; color: var(--text-main); font-size: 0.9rem;
-        }
-        .chat-input-area input[type="text"]:focus { outline: none; border-color: var(--accent); }
-
-        .send-btn {
-            background: var(--accent); color: #ffffff; border: none; width: 40px; height: 40px;
-            border-radius: 50%; font-weight: 700; cursor: pointer; display: flex; align-items: center;
-            justify-content: center; flex-shrink: 0; box-shadow: 0 2px 8px var(--accent-glow);
-        }
-
-        #uploadProgress {
-            font-size: 0.7rem; color: var(--accent); padding: 0 1rem; font-family: var(--font-mono); font-weight: 600;
-        }
-    </style>
-</head>
-<body>
-
-    <header>
-        <div class="logo">Crypto<span>Room</span></div>
-        <div class="header-controls">
-            <button class="action-btn" onclick="cycleTheme()">🎨 Theme</button>
-            <div class="online-counter" id="onlineBadge">
-                <div class="online-dot"></div>
-                <span id="onlineCountText">0 Online</span>
-            </div>
-        </div>
-    </header>
-
-    <div class="app-container">
-        <!-- LOBBY SCREEN -->
-        <div id="lobbyScreen" class="screen">
-            <h1>Professional Encrypted Chat</h1>
-            <p>Secure peer-to-peer mobile messenger with lightning-fast media sharing and downloads.</p>
-            
-            <div class="card">
-                <div class="form-group">
-                    <label>Your Display Name</label>
-                    <input type="text" id="usernameInput" placeholder="e.g. Alex Morgan" maxlength="24">
-                </div>
-                <div class="form-group">
-                    <label>Cryptographic Room Code</label>
-                    <input type="text" id="roomCodeInput" placeholder="e.g. 48.902.112">
-                </div>
-                <button class="btn" onclick="joinRoom()">Join Secure Room 🚀</button>
-                <button class="btn btn-outline" onclick="generateUnguessableCode()">Generate Secure Code ⚡</button>
-            </div>
-        </div>
-
-        <!-- CHAT SCREEN -->
-        <div id="chatScreen" class="screen">
-            <div class="chat-header-bar">
-                <div class="chat-peer-info">
-                    <div class="peer-avatar" id="myAvatarLetter">U</div>
-                    <div class="peer-details">
-                        <div class="room-title" id="activeCodeDisplay">Room ---</div>
-                        <div class="room-status" id="headerUserStatus">Connecting...</div>
-                    </div>
-                </div>
-                <div style="display: flex; gap: 5px; align-items: center;">
-                    <button class="action-btn" onclick="copyRoomCode()">Copy</button>
-                    <button class="action-btn" onclick="leaveRoom()" style="color:#ef4444; border-color:rgba(239,68,68,0.3);">Leave</button>
-                </div>
-            </div>
-            
-            <div class="chat-messages" id="messageContainer" onscroll="checkVisibleMessages()">
-                <div class="message-wrapper incoming">
-                    <div class="group-msg-header"><span>~ Secure System</span></div>
-                    <div class="message">
-                        Room active! High-speed media sharing and downloads are enabled.
-                        <div class="msg-bubble-footer"><span class="msg-time">System</span></div>
-                    </div>
-                </div>
-            </div>
-
-            <div id="uploadProgress"></div>
-            <div class="typing-indicator" id="typingIndicator"></div>
-
-            <div class="chat-input-area">
-                <input type="file" id="mediaInput" accept="image/*,video/*,application/pdf,.doc,.docx" multiple style="display:none;" onchange="handleFileAttachment(event)">
-                <button class="attach-btn" onclick="document.getElementById('mediaInput').click()" title="Attach Files">📎</button>
-                <input type="text" id="messageInput" placeholder="Type a secure message..." oninput="handleTypingInput()" onkeypress="handleKey(event)">
-                <button class="send-btn" onclick="sendMessage()">➤</button>
-            </div>
-        </div>
-    </div>
-
     <script>
         const socket = io();
-        let currentRoom = null;
-        let myUsername = 'Anonymous';
-        let typingTimer = null;
+        let currentUser = '';
+        let currentRoom = '';
         
-        const themes = ['', 'theme-purple', 'theme-light'];
-        let currentThemeIdx = 0;
-
-        function cycleTheme() {
-            document.body.classList.remove('theme-purple', 'theme-light');
-            currentThemeIdx = (currentThemeIdx + 1) % themes.length;
-            if(themes[currentThemeIdx]) document.body.classList.add(themes[currentThemeIdx]);
-        }
-
-        function generateUnguessableCode() {
-            let parts = [];
-            for(let i=0; i<3; i++) parts.push(Math.floor(10 + Math.random() * 9899));
-            document.getElementById('roomCodeInput').value = parts.join('.');
-        }
-
-        function copyRoomCode() {
-            if(!currentRoom) return;
-            navigator.clipboard.writeText(currentRoom).then(() => alert("Room code copied!"));
-        }
+        // WebRTC Global State
+        let localStream = null;
+        let peerConnection = null;
+        let dataChannel = null;
+        const rtcConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
 
         function joinRoom() {
-            const name = document.getElementById('usernameInput').value.trim();
-            const code = document.getElementById('roomCodeInput').value.trim();
-            if(!name) return alert("Please enter your name!");
-            if(!code) return alert("Please enter a room code!");
+            currentUser = document.getElementById('username-input').value.trim();
+            currentRoom = document.getElementById('room-input').value.trim();
+            if (!currentUser || !currentRoom) return alert('Please enter both name and room.');
 
-            myUsername = name;
-            currentRoom = code;
+            document.getElementById('setup-screen').style.display = 'none';
+            document.getElementById('app-screen').style.display = 'grid';
+            document.getElementById('room-title').innerText = `Room: ${currentRoom}`;
 
-            document.getElementById('lobbyScreen').style.display = 'none';
-            document.getElementById('chatScreen').style.display = 'flex';
-            document.getElementById('activeCodeDisplay').innerText = 'Room ' + code;
-            document.getElementById('myAvatarLetter').innerText = name.charAt(0).toUpperCase();
-
-            socket.emit('join_room', { room: currentRoom, username: myUsername });
+            socket.emit('join_room', { room: currentRoom, username: currentUser });
         }
 
-        function leaveRoom() { location.reload(); }
-        function handleKey(e) { if(e.key === 'Enter') sendMessage(); }
-
-        function handleTypingInput() {
-            socket.emit('typing_start', { room: currentRoom, username: myUsername });
-            clearTimeout(typingTimer);
-            typingTimer = setTimeout(() => {
-                socket.emit('typing_stop', { room: currentRoom, username: myUsername });
-            }, 1000);
-        }
-
-        function renderMessage(data) {
-            let wrapper = document.getElementById('msg_' + data.id);
-            if (!wrapper) {
-                wrapper = document.createElement('div');
-                wrapper.id = 'msg_' + data.id;
-                const isOutgoing = data.sender === myUsername;
-                wrapper.className = `message-wrapper ${isOutgoing ? 'outgoing' : 'incoming'}`;
-                
-                wrapper.addEventListener('click', (e) => {
-                    document.querySelectorAll('.message-wrapper').forEach(w => { if(w !== wrapper) w.classList.remove('touch-active'); });
-                    wrapper.classList.toggle('touch-active');
-                    e.stopPropagation();
-                });
-
-                document.getElementById('messageContainer').appendChild(wrapper);
-            }
-
-            const isOutgoing = data.sender === myUsername;
-            let tickHTML = '';
-            if (isOutgoing) {
-                let tickClass = data.read ? 'tick-mark read' : 'tick-mark';
-                tickHTML = `<span class="${tickClass}">✓✓</span>`;
-            }
-
-            let innerHTML = `
-                <div class="message-actions">
-                    <button onclick="reactMessage('${data.id}', '❤️')">❤</button>
-                    <button onclick="reactMessage('${data.id}', '👍')">👍</button>
-                    <button onclick="reactMessage('${data.id}', '🔥')">🔥</button>
-                    <button onclick="deleteMessage('${data.id}')" style="color:#ef4444; font-weight:bold;">🗑</button>
-                </div>
-                <div class="group-msg-header">
-                    <span>~ ${escapeHtml(data.sender)}</span>
-                </div>
-                <div class="message">
-            `;
-
-            if(data.type === 'image' || data.type === 'video' || data.type === 'file') {
-                // Convert raw ArrayBuffer back to an Object URL for instant playback/rendering & downloading
-                let blob = new Blob([data.content], { type: data.mimeType || 'application/octet-stream' });
-                let mediaUrl = URL.createObjectURL(blob);
-
-                if(data.type === 'image') {
-                    innerHTML += `
-                        <div class="media-container">
-                            <img src="${mediaUrl}" alt="Photo">
-                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'image.jpg')}" class="media-overlay-btn">⬇ Download</a>
-                        </div>
-                    `;
-                } else if(data.type === 'video') {
-                    innerHTML += `
-                        <div class="media-container">
-                            <video controls playsinline src="${mediaUrl}"></video>
-                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'video.mp4')}" class="media-overlay-btn">⬇ Download</a>
-                        </div>
-                    `;
-                } else {
-                    innerHTML += `
-                        <div class="file-attachment">
-                            <div class="file-icon">📄</div>
-                            <div class="file-info">
-                                <div class="file-name">${escapeHtml(data.fileName || 'Document')}</div>
-                                <div class="file-size">${data.fileSize || 'File'}</div>
-                            </div>
-                            <a href="${mediaUrl}" download="${escapeHtml(data.fileName || 'document')}" class="file-download-btn">Download</a>
-                        </div>
-                    `;
-                }
-            } else {
-                innerHTML += escapeHtml(data.content);
-            }
-
-            innerHTML += `
-                    <div class="msg-bubble-footer"><span class="msg-time">${data.time}</span>${tickHTML}</div>
-                </div>
-            `;
-
-            if (data.reactions && Object.keys(data.reactions).length > 0) {
-                let reactionSummary = Object.values(data.reactions).join(' ');
-                innerHTML += `<div class="reactions-badge">${reactionSummary}</div>`;
-            }
-
-            wrapper.innerHTML = innerHTML;
-        }
-
-        function checkVisibleMessages() {
-            const container = document.getElementById('messageContainer');
-            const wrappers = container.querySelectorAll('.message-wrapper.incoming');
-            
-            wrappers.forEach(wrapper => {
-                const rect = wrapper.getBoundingClientRect();
-                const containerRect = container.getBoundingClientRect();
-                
-                if (rect.top >= containerRect.top && rect.bottom <= containerRect.bottom) {
-                    const msgId = wrapper.id.replace('msg_', '');
-                    socket.emit('mark_read', { room: currentRoom, id: msgId, reader: myUsername });
-                }
-            });
-        }
-
-        document.addEventListener('click', () => {
-            document.querySelectorAll('.message-wrapper').forEach(w => w.classList.remove('touch-active'));
-        });
-
+        // --- Chat Messaging & Reactions ---
         function sendMessage() {
-            const input = document.getElementById('messageInput');
+            const input = document.getElementById('message-input');
             const text = input.value.trim();
-            if(!text || !currentRoom) return;
+            if (!text) return;
 
-            const msgData = {
+            const msg = {
+                id: Math.random().toString(36.substring(2)),
                 room: currentRoom,
-                id: Math.random().toString(36).substring(2) + Date.now(),
-                sender: myUsername,
-                type: 'text',
-                content: text,
-                read: false,
-                reactions: {},
-                time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
+                sender: currentUser,
+                text: text,
+                time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                reactions: {}
             };
 
-            socket.emit('send_message', msgData);
+            socket.emit('send_message', msg);
             input.value = '';
         }
 
-        function handleFileAttachment(e) {
-            const files = e.target.files;
-            if(!files || files.length === 0 || !currentRoom) return;
+        function handleKeyPress(e) { if (e.key === 'Enter') sendMessage(); }
 
-            const progressEl = document.getElementById('uploadProgress');
+        socket.on('receive_message', (msg) => {
+            appendMessageNode(msg);
+        });
 
-            Array.from(files).forEach((file, index) => {
+        function appendMessageNode(msg) {
+            const box = document.getElementById('messages-box');
+            const div = document.createElement('div');
+            div.className = `message ${msg.sender === currentUser ? 'self' : ''}`;
+            div.id = `msg-${msg.id}`;
+
+            div.innerHTML = `
+                <div class="meta">
+                    <span><b>${msg.sender}</b> • ${msg.time}</span>
+                    ${msg.sender === currentUser ? `<span style="cursor:pointer; color:#f87171;" onclick="deleteMessage('${msg.id}')">Delete</span>` : ''}
+                </div>
+                <div class="content">${escapeHtml(msg.text)}</div>
+                <div class="reactions" style="margin-top: 0.3rem; font-size: 0.85rem;"></div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+        }
+
+        function deleteMessage(id) {
+            socket.emit('delete_message', { id, room: currentRoom });
+        }
+
+        socket.on('remove_message', (id) => {
+            const el = document.getElementById(`msg-${id}`);
+            if (el) el.remove();
+        });
+
+        socket.on('room_users_update', (users) => {
+            const list = document.getElementById('users-list');
+            list.innerHTML = users.map(u => `<li>${escapeHtml(u)}</li>`).join('');
+        });
+
+        // --- P2P Chunked File Transfer (3-5 GB+ Supported) ---
+        function handleFileSelected(input) {
+            const file = input.files[0];
+            if (!file) return;
+
+            // Create placeholder message with progress bar
+            const box = document.getElementById('messages-box');
+            const fileId = Math.random().toString(36).substring(2);
+            const div = document.createElement('div');
+            div.className = `message self`;
+            div.innerHTML = `
+                <div class="meta"><span><b>You</b> (Sending File)</span></div>
+                <div>📁 ${escapeHtml(file.name)} (${(file.size / (1024*1024)).toFixed(1)} MB)</div>
+                <div class="file-progress"><div id="prog-${fileId}" class="file-progress-bar"></div></div>
+            `;
+            box.appendChild(div);
+            box.scrollTop = box.scrollHeight;
+
+            setupWebRTCConnection(() => {
+                // Send file metadata first
+                dataChannel.send(JSON.stringify({ type: 'file_meta', name: file.name, size: file.size, fileId }));
+
+                const CHUNK_SIZE = 64 * 1024; // 64KB chunks
+                let offset = 0;
                 const reader = new FileReader();
-                
-                reader.onprogress = (event) => {
-                    if (event.lengthComputable) {
-                        let percent = Math.round((event.loaded / event.total) * 100);
-                        progressEl.innerText = `Preparing ${file.name}: ${percent}%`;
+
+                reader.onload = (e) => {
+                    dataChannel.send(e.target.result);
+                    offset += e.target.result.byteLength;
+                    
+                    const progress = (offset / file.size) * 100;
+                    document.getElementById(`prog-${fileId}`).style.width = `${progress}%`;
+
+                    if (offset < file.size) {
+                        readNextChunk();
+                    } else {
+                        dataChannel.send(JSON.stringify({ type: 'file_complete', fileId }));
                     }
                 };
 
-                reader.onload = function(event) {
-                    const rawBuffer = event.target.result; // ArrayBuffer for fast binary transfer
-                    let type = 'file';
-                    if(file.type.startsWith('image/')) type = 'image';
-                    else if(file.type.startsWith('video/')) type = 'video';
+                function readNextChunk() {
+                    const slice = file.slice(offset, offset + CHUNK_SIZE);
+                    reader.readAsArrayBuffer(slice);
+                }
 
-                    const msgData = {
-                        room: currentRoom,
-                        id: Math.random().toString(36).substring(2) + Date.now(),
-                        sender: myUsername,
-                        type: type,
-                        content: rawBuffer, // Raw binary payload avoids base64 lags
-                        mimeType: file.type,
-                        fileName: file.name,
-                        fileSize: (file.size / (1024*1024)).toFixed(1) + ' MB',
-                        read: false,
-                        reactions: {},
-                        time: new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})
-                    };
-
-                    socket.emit('send_message', msgData);
-                    if(index === files.length - 1) progressEl.innerText = '';
-                };
-                
-                reader.readAsArrayBuffer(file);
+                readNextChunk();
             });
-            e.target.value = '';
         }
 
-        function deleteMessage(msgId) { socket.emit('delete_message', { room: currentRoom, id: msgId }); }
-        function reactMessage(msgId, emoji) { socket.emit('react_message', { room: currentRoom, id: msgId, user: myUsername, emoji: emoji }); }
+        // --- WebRTC Video Calling & P2P Engine ---
+        async function startVideoCall() {
+            document.getElementById('video-container').style.display = 'block';
+            localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true });
+            document.getElementById('local-video').srcObject = localStream;
 
-        socket.on('init_history', (messages) => {
-            document.getElementById('messageContainer').innerHTML = '';
-            messages.forEach(msg => renderMessage(msg));
-            const container = document.getElementById('messageContainer');
-            container.scrollTop = container.scrollHeight;
-        });
+            setupWebRTCConnection(async () => {
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+                socket.emit('webrtc_offer', { room: currentRoom, offer });
+            });
+        }
 
-        socket.on('receive_message', (msg) => {
-            renderMessage(msg);
-            const container = document.getElementById('messageContainer');
-            container.scrollTop = container.scrollHeight;
-            checkVisibleMessages();
-        });
+        function setupWebRTCConnection(onReady) {
+            if (peerConnection) {
+                if (onReady && dataChannel && dataChannel.readyState === 'open') onReady();
+                return;
+            }
 
-        socket.on('update_message', (msg) => { renderMessage(msg); });
-        socket.on('remove_message', (msgId) => {
-            const el = document.getElementById('msg_' + msgId);
-            if(el) el.remove();
-        });
+            peerConnection = new RTCPeerConnection(rtcConfig);
 
-        socket.on('room_users_update', (count) => {
-            document.getElementById('onlineCountText').innerText = count + ' Online';
-            document.getElementById('headerUserStatus').innerText = count + ' active user(s)';
-        });
+            // Add local tracks if video call active
+            if (localStream) {
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+            }
 
-        socket.on('display_typing', (username) => {
-            if(username) {
-                document.getElementById('typingIndicator').innerText = username + ' is typing...';
+            peerConnection.ontrack = (event) => {
+                document.getElementById('video-container').style.display = 'block';
+                document.getElementById('remote-video').srcObject = event.streams[0];
+            };
+
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                    socket.emit('webrtc_ice_candidate', { room: currentRoom, candidate: event.candidate });
+                }
+            };
+
+            // DataChannel configuration for P2P File transfers
+            if (currentUser < 'Peer2') { // Arbitrary initiator rule for mesh demo
+                dataChannel = peerConnection.createDataChannel('file-transfer');
+                setupDataChannelListeners();
+                if (onReady) peerConnection.onicegatheringstatechange = () => { if(peerConnection.iceGatheringState === 'complete') onReady(); };
             } else {
-                document.getElementById('typingIndicator').innerText = '';
+                peerConnection.ondatachannel = (event) => {
+                    dataChannel = event.channel;
+                    setupDataChannelListeners();
+                    if (onReady) onReady();
+                };
+            }
+        }
+
+        function setupDataChannelListeners() {
+            let incomingFile = {};
+            dataChannel.onmessage = (event) => {
+                if (typeof event.data === 'string') {
+                    const data = JSON.parse(event.data);
+                    if (data.type === 'file_meta') {
+                        incomingFile[data.fileId] = { name: data.name, size: data.size, buffer: [], received: 0 };
+                    } else if (data.type === 'file_complete') {
+                        const fileMeta = incomingFile[data.fileId];
+                        const blob = new Blob(fileMeta.buffer);
+                        const url = URL.createObjectURL(blob);
+                        
+                        const box = document.getElementById('messages-box');
+                        const div = document.createElement('div');
+                        div.className = `message`;
+                        div.innerHTML = `
+                            <div class="meta"><span><b>Peer</b> (File Received)</span></div>
+                            <div>📁 <a href="${url}" download="${fileMeta.name}" style="color: #60a5fa; font-weight: bold;">Download ${escapeHtml(fileMeta.name)}</a></div>
+                        `;
+                        box.appendChild(div);
+                        box.scrollTop = box.scrollHeight;
+                    }
+                } else {
+                    // Binary chunk received
+                    const fileKeys = Object.keys(incomingFile);
+                    const activeKey = fileKeys[fileKeys.length - 1];
+                    if (activeKey) {
+                        incomingFile[activeKey].buffer.push(event.data);
+                        incomingFile[activeKey].received += event.data.byteLength;
+                    }
+                }
+            };
+        }
+
+        // Signaling handlers
+        socket.on('webrtc_offer', async ({ offer, sender }) => {
+            setupWebRTCConnection(async () => {
+                await peerConnection.setRemoteDescription(new RTCSessionDescription(offer));
+                if (!localStream) {
+                    localStream = await navigator.mediaDevices.getUserMedia({ video: true, audio: true }).catch(() => null);
+                    if (localStream) {
+                        document.getElementById('local-video').srcObject = localStream;
+                        localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                    }
+                }
+                const answer = await peerConnection.createAnswer();
+                await peerConnection.setLocalDescription(answer);
+                socket.emit('webrtc_answer', { room: currentRoom, answer });
+            });
+        });
+
+        socket.on('webrtc_answer', async ({ answer }) => {
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+        });
+
+        socket.on('webrtc_ice_candidate', async ({ candidate }) => {
+            if (peerConnection) {
+                await peerConnection.addIceCandidate(new RTCIceCandidate(candidate));
             }
         });
 
-        function escapeHtml(str) {
-            return String(str).replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+        function endVideoCall() {
+            if (localStream) localStream.getTracks().forEach(t => t.stop());
+            if (peerConnection) peerConnection.close();
+            peerConnection = null;
+            localStream = null;
+            document.getElementById('video-container').style.display = 'none';
+        }
+
+        function escapeHtml(text) {
+            const map = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' };
+            return text.replace(/[&<>"']/g, m => map[m]);
         }
     </script>
 </body>
 </html>
+
