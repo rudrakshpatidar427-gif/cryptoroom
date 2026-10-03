@@ -5,7 +5,7 @@ const { Server } = require('socket.io');
 const app = express();
 const server = http.createServer(app);
 const io = new Server(server, {
-    maxHttpBufferSize: 1e8 // Allow larger payloads if fallback text/images go through socket
+    maxHttpBufferSize: 1e8 
 });
 
 app.use(express.static(__dirname));
@@ -92,7 +92,7 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('call_ended');
     });
 
-    // WebRTC Robust Signaling
+    // WebRTC Signaling
     socket.on('webrtc_offer', (data) => {
         socket.to(data.room).emit('webrtc_offer', { offer: data.offer, sender: socket.id });
     });
