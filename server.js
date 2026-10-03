@@ -4,7 +4,9 @@ const { Server } = require('socket.io');
 
 const app = express();
 const server = http.createServer(app);
-const io = new Server(server);
+const io = new Server(server, {
+    maxHttpBufferSize: 1e8 // Allow larger payloads if fallback text/images go through socket
+});
 
 app.use(express.static(__dirname));
 
@@ -73,7 +75,7 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('display_typing', null);
     });
 
-    // WhatsApp-Style Call Signaling
+    // Call Signaling
     socket.on('start_call', (data) => {
         socket.to(data.room).emit('incoming_call', { caller: data.caller });
     });
@@ -90,7 +92,7 @@ io.on('connection', (socket) => {
         socket.to(data.room).emit('call_ended');
     });
 
-    // WebRTC Signaling for Calls & Large Files
+    // WebRTC Robust Signaling
     socket.on('webrtc_offer', (data) => {
         socket.to(data.room).emit('webrtc_offer', { offer: data.offer, sender: socket.id });
     });
